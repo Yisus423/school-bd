@@ -1,8 +1,10 @@
 import sqlite3
+from pathlib import Path
 
 """Inicializacion de la Base de datos (DB) con sqlite3 (SQL crudo)"""
 # Creando (Si no existe) y conectandose a la DB
-db = sqlite3.connect("db.sqlite3")
+DB_PATH = Path(__file__).resolve().parent / "db.sqlite3"
+db = sqlite3.connect(DB_PATH)
 cursor = db.cursor()
 
 cursor.execute("""
