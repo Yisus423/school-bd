@@ -5,5 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "kivymd>=2.0.0",
+    "rich>=15.0.0",
+    "typer>=0.27.3",
 ]
