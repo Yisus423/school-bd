@@ -1,94 +1,97 @@
-"""Student CLI over database.py (typer + rich).
+"""Student CLI over database.py (Typer + Rich).
 
-Golden rule for this file: zero SQL. Every data access goes through
-database.py; here we only translate command-line arguments into calls and
-render the result with rich.
+This module only translates command-line arguments, delegates persistence to
+``database.py``, and renders results. Validation belongs to the Pydantic and
+SQLModel schemas in ``models.py``.
 """
 
-from datetime import date
 from typing import Annotated
 
 import typer
+from pydantic import ValidationError
 from rich.box import ROUNDED
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from typer._click.exceptions import UsageError
+from typer.core import TyperGroup
 
 import database as db
+from models import Student
 
-app = typer.Typer(help="Student CRUD over SQLite.", no_args_is_help=True)
+
+class ErrorAwareGroup(TyperGroup):
+    """Render Typer usage errors with the CLI's readable error convention."""
+
+    @staticmethod
+    def _exit_with_error(error: UsageError) -> None:
+        typer.echo(
+            typer.style("Error: ", fg="red", bold=True) + error.format_message()
+        )
+        raise typer.Exit(code=1) from None
+
+    def make_context(self, info_name, args, parent=None, **extra):
+        try:
+            return super().make_context(info_name, args, parent=parent, **extra)
+        except UsageError as error:
+            self._exit_with_error(error)
+
+    def invoke(self, ctx):
+        try:
+            return super().invoke(ctx)
+        except UsageError as error:
+            self._exit_with_error(error)
+
+
+app = typer.Typer(
+    help="Student CRUD over SQLite.",
+    no_args_is_help=True,
+    cls=ErrorAwareGroup,
+)
 console = Console()
 
-# database.py still returns plain tuples (SELECT * without row_factory), so the
-# column order lives here. Once you add row_factory to database.py, these two
-# lines become dict(zip(...)) over a Row.
-COLUMNS = ("id", "name", "age", "birthday", "course")
 
-RIGHT_ALIGNED = {"id", "age"}
-
-
-# --- presentation and validation helpers ---
 def fail(message: str) -> None:
     """Print a readable error and stop with exit code 1."""
     console.print(f"[bold red]Error:[/] {message}")
     raise typer.Exit(code=1)
 
 
-def to_dict(row: tuple) -> dict:
-    return dict(zip(COLUMNS, row))
+def report_validation_error(error: ValidationError) -> None:
+    """Render Pydantic's validation details without a traceback."""
+    details = []
+    for item in error.errors():
+        location = ".".join(str(part) for part in item["loc"])
+        details.append(f"{location}: {item['msg']}")
+    fail("invalid input: " + "; ".join(details))
 
 
-def validate_name(name: str) -> str:
-    clean = name.strip()
-    if not clean:
-        fail("the name cannot be empty")
-    return clean
-
-
-def validate_age(age: int) -> int:
-    if not 1 <= age <= 130:
-        fail(f"age must be between 1 and 130, got {age}")
-    return age
-
-
-def validate_birthday(birthday: str) -> str:
-    try:
-        date.fromisoformat(birthday)
-    except ValueError:
-        fail(f"birthday must use the YYYY-MM-DD format, got '{birthday}'")
-    return birthday
-
-
-def render_table(students: list[dict]) -> None:
+def render_table(students: list[Student]) -> None:
     if not students:
         console.print("[yellow]No students found.[/]")
         return
 
     table = Table(title="Students", box=ROUNDED, header_style="bold cyan")
-    for column in COLUMNS:
+    for column in ("id", "name", "age", "birthday", "course"):
         table.add_column(
             column.capitalize(),
-            justify="right" if column in RIGHT_ALIGNED else "left",
+            justify="right" if column in {"id", "age"} else "left",
         )
     for student in students:
-        table.add_row(*[str(student[column]) for column in COLUMNS])
+        table.add_row(
+            str(student.id),
+            student.name,
+            str(student.age),
+            student.birthday.isoformat(),
+            student.course,
+        )
     console.print(table)
 
 
-def require_existing(student_id: int) -> dict:
-    """database.py still does not return a rowcount on update/delete, so the CLI
-    checks existence before mutating in order to be able to report the truth."""
-    row = db.get_student(student_id)
-    if row is None:
-        fail(f"no student with id {student_id}")
-    return to_dict(row)
-
-
-# --- commands ---
 @app.command("list")
 def list_students() -> None:
     """List every student."""
-    render_table([to_dict(row) for row in db.get_students()])
+    render_table(db.get_students())
 
 
 @app.command("add")
@@ -101,10 +104,11 @@ def add_student(
     course: Annotated[str, typer.Option("--course", "-c", prompt=True, help="Course")],
 ) -> None:
     """Create a new student."""
-    new_id = db.add_student(
-        validate_name(name), validate_age(age), validate_birthday(birthday), course.strip()
-    )
-    console.print(f"[bold green]Student {new_id} created.[/]")
+    try:
+        student = db.add_student(name, age, birthday, course)
+    except ValidationError as error:
+        report_validation_error(error)
+    console.print(f"[bold green]Student {student.id} created.[/]")
 
 
 @app.command("show")
@@ -112,8 +116,19 @@ def show_student(
     student_id: Annotated[int, typer.Argument(help="Student ID")],
 ) -> None:
     """Show a single student."""
-    student = require_existing(student_id)
-    body = "\n".join(f"{column:<10}{student[column]}" for column in COLUMNS)
+    student = db.get_student(student_id)
+    if student is None:
+        fail(f"no student with id {student_id}")
+
+    body = "\n".join(
+        (
+            f"{'id':<10}{student.id}",
+            f"{'name':<10}{student.name}",
+            f"{'age':<10}{student.age}",
+            f"{'birthday':<10}{student.birthday.isoformat()}",
+            f"{'course':<10}{student.course}",
+        )
+    )
     console.print(Panel(body, title=f"Student {student_id}", border_style="cyan"))
 
 
@@ -128,19 +143,23 @@ def edit_student(
     """Update one or more fields of a student."""
     fields = {}
     if name is not None:
-        fields["name"] = validate_name(name)
+        fields["name"] = name
     if age is not None:
-        fields["age"] = validate_age(age)
+        fields["age"] = age
     if birthday is not None:
-        fields["birthday"] = validate_birthday(birthday)
+        fields["birthday"] = birthday
     if course is not None:
-        fields["course"] = course.strip()
+        fields["course"] = course
 
     if not fields:
         fail("you did not pass any field; use --name, --age, --birthday or --course")
 
-    require_existing(student_id)
-    db.edit_student(student_id, **fields)
+    try:
+        student = db.edit_student(student_id, **fields)
+    except ValidationError as error:
+        report_validation_error(error)
+    if student is None:
+        fail(f"no student with id {student_id}")
     console.print(f"[bold green]Student {student_id} updated.[/]")
 
 
@@ -150,12 +169,15 @@ def delete_student(
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip the confirmation")] = False,
 ) -> None:
     """Delete a student."""
-    require_existing(student_id)
+    student = db.get_student(student_id)
+    if student is None:
+        fail(f"no student with id {student_id}")
     if not yes and not typer.confirm(f"Delete student {student_id}?", default=False):
         console.print("[yellow]Cancelled.[/]")
         raise typer.Exit()
 
-    db.delete_student(student_id)
+    if not db.delete_student(student_id):
+        fail(f"no student with id {student_id}")
     console.print(f"[bold green]Student {student_id} deleted.[/]")
 
 
