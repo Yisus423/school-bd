@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "comments": [
+    {
+      "id": "2nkbkn3z",
+      "file": "01-dense-table.html",
+      "selector": "body > header > div > h1",
+      "excerpt": "School DB",
+      "comment": "Estaría genial que el nombre del colegio fuera configurable junto con su logo y que usando el material you de beercss se obtenga y use la paleta de colores del colegio",
+      "createdAt": "2026-11-02T23:08:43.429Z",
+      "status": "open",
+      "sentAt": "2026-11-02T23:08:43.837Z",
+      "resolvedAt": null
+    },
+    {
+      "id": "xc8v0dfa",
+      "file": "01-dense-table.html",
+      "selector": "body > header > span:nth-of-type(1)",
+      "excerpt": "",
+      "comment": "Aquí debería ir el logo del colegio",
+      "createdAt": "2026-11-02T23:09:13.697Z",
+      "status": "open",
+      "sentAt": "2026-11-02T23:09:14.032Z",
+      "resolvedAt": null
+    }
+  ]
+}

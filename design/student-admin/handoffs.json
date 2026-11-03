@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "chosen": "01-dense-table.html",
+  "handoffs": {
+    "01-dense-table.html": {
+      "status": "in_progress",
+      "queued": false,
+      "sentAt": "2026-11-02T23:20:50.436Z",
+      "startedAt": "2026-11-03T00:48:51.313Z",
+      "implementedAt": null,
+      "feature": "odd/tasks/web-student-crud.md",
+      "note": "Implementing the dense-table direction in FastAPI + BeerCSS + HTMX; both canvas comments (configurable school name/logo + Material You palette from the school color) are in scope."
+    }
+  }
+}
