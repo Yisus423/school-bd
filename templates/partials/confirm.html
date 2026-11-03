@@ -1,0 +1,19 @@
+{# Delete confirmation. Rendered standalone for HTMX and inside the page without JS. #}
+<dialog id="delete-student" aria-labelledby="delete-student-title"{% if dialog.open_dialog %} open{% endif %}>
+  <h5 id="delete-student-title">Delete student</h5>
+  <p>
+    Delete <strong>{{ dialog.student.name }}</strong> (ID {{ dialog.student.id }},
+    {{ dialog.student.course }})? This removes the record from the database and cannot be undone.
+  </p>
+
+  <form method="post" action="/students/{{ dialog.student.id }}/delete"
+        hx-post="/students/{{ dialog.student.id }}/delete"
+        hx-target="#students-rows" hx-swap="outerHTML">
+    <input type="hidden" name="q" value="{{ dialog.q }}">
+    <input type="hidden" name="course_filter" value="{{ dialog.course_filter }}">
+    <nav>
+      <button type="button" class="transparent" data-close data-autofocus>Cancel</button>
+      <button type="submit" class="error">Delete</button>
+    </nav>
+  </form>
+</dialog>

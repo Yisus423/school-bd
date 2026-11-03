@@ -1,0 +1,8 @@
+# School branding for the web UI.
+# Every value can be overridden with an environment variable:
+# SCHOOL_NAME, SCHOOL_LOGO (path inside static/), SCHOOL_COLOR (#RRGGBB).
+
+[school]
+name = "School DB"
+logo = "logo.svg"
+color = "#0b57d0"

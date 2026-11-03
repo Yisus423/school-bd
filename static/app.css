@@ -1,0 +1,86 @@
+/* Small additions on top of BeerCSS. Tokens come from BeerCSS (Material You),
+   so the page follows the school palette derived from settings.color. */
+
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+
+.skip:focus {
+  position: fixed;
+  left: 0.5rem;
+  top: 0.5rem;
+  z-index: 200;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.25rem;
+  background-color: var(--primary);
+  color: var(--on-primary);
+}
+
+main#main {
+  padding-block: 1rem 3rem;
+}
+
+#filters {
+  align-items: center;
+  gap: 1rem;
+}
+
+#filters > .field {
+  margin-block-end: 0;
+}
+
+#filters > button {
+  white-space: nowrap;
+}
+
+table {
+  inline-size: 100%;
+}
+
+table caption {
+  text-align: start;
+  padding-inline: 1rem;
+}
+
+td.numeric,
+th.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+td.actions,
+th.actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+td.actions button + button {
+  margin-inline-start: 0.25rem;
+}
+
+/* Inline SVG icons replace the Material Symbols icon font, so the app has no
+   external font request. */
+.circle > svg,
+button > svg {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  display: block;
+}
+
+dialog > form > .error-container {
+  margin-block-end: 1rem;
+}
+
+dialog > form > nav {
+  margin-block-start: 1.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

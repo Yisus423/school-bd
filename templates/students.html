@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Students · {{ settings.name }}</title>
+  {# 422 and 404 responses carry dialog fragments, so they must be swapped. #}
+  <meta name="htmx-config" content='{"responseHandling":[{"code":"422","swap":true,"error":false},{"code":"404","swap":true,"error":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":false,"error":true},{"code":"...","swap":false}]}'>
+  {# Root-relative asset paths: they survive proxies and keep the page offline. #}
+  <link rel="stylesheet" href="/static/vendor/beer.min.css">
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="icon" href="/static/{{ settings.logo }}">
+</head>
+<body data-school-color="{{ settings.color }}">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header>
+    <nav>
+      <img class="circle" src="/static/{{ settings.logo }}"
+           alt="{{ settings.name }} logo" width="40" height="40">
+      <h5 class="max">{{ settings.name }}</h5>
+      <span class="chip">Students</span>
+    </nav>
+  </header>
+
+  <main id="main" class="responsive max">
+    <form id="filters" class="row" method="get" action="/students"
+          hx-get="/students/rows" hx-target="#students-rows" hx-swap="outerHTML"
+          hx-trigger="input changed delay:300ms from:find input, change from:find select">
+      <div class="field label border round small max">
+        <input id="q" name="q" type="search" value="{{ q }}" autocomplete="off" placeholder=" ">
+        <label for="q">Search</label>
+      </div>
+      <div class="field label border round small">
+        <select id="course_filter" name="course_filter">
+          <option value="">All courses</option>
+          {% for course in available_courses() %}
+          <option value="{{ course }}"{% if course == course_filter %} selected{% endif %}>{{ course }}</option>
+          {% endfor %}
+        </select>
+        <label for="course_filter">Course</label>
+      </div>
+      {# An anchor with both href and hx-get works with and without JavaScript. #}
+      <a class="button" href="/students/new" hx-get="/students/new" hx-include="#filters"
+         hx-target="#dialog-host" hx-swap="innerHTML">Add student</a>
+    </form>
+
+    <article class="border round">
+      <table>
+        <caption>
+          Every student stored in <code>db.sqlite3</code>, ordered by identifier.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" class="numeric">ID</th>
+            <th scope="col">Name</th>
+            <th scope="col" class="numeric">Age</th>
+            <th scope="col">Birthday</th>
+            <th scope="col">Course</th>
+            <th scope="col" class="actions">Actions</th>
+          </tr>
+        </thead>
+        {% include 'partials/rows.html' %}
+      </table>
+      <nav>
+        {% include 'partials/count.html' %}
+        <span class="max"></span>
+        <span>Validated by <code>models.py</code> · served by <code>web.py</code></span>
+      </nav>
+    </article>
+  </main>
+
+  <div id="dialog-host">
+    {% if dialog %}{% include dialog.template %}{% endif %}
+  </div>
+
+  <footer>
+    <nav>
+      <span class="max">{{ settings.name }} · student administration</span>
+      <span>SQLite · <code>students</code></span>
+    </nav>
+  </footer>
+
+  <script src="/static/vendor/htmx.min.js" defer></script>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+{# One source for the record counter, shared by the page and the HTMX fragment. #}
+<span id="student-count"{% if oob %} hx-swap-oob="true"{% endif %}>{{ students | length }} record{% if students | length != 1 %}s{% endif %}</span>

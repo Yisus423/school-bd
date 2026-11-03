@@ -1,0 +1,65 @@
+{# Add/edit dialog. Rendered standalone for HTMX and inside the page without JS. #}
+{% set action = '/students' if dialog.mode == 'create' else '/students/' ~ dialog.student_id %}
+<dialog id="student-form" aria-labelledby="student-form-title"{% if dialog.open_dialog %} open{% endif %}>
+  <h5 id="student-form-title">{{ 'Add student' if dialog.mode == 'create' else 'Edit student ' ~ dialog.student_id }}</h5>
+  <p>Values are validated with the same rules as the CLI and the API.</p>
+
+  <form method="post" action="{{ action }}" hx-post="{{ action }}"
+        hx-target="#students-rows" hx-swap="outerHTML">
+    <input type="hidden" name="q" value="{{ dialog.q }}">
+    <input type="hidden" name="course_filter" value="{{ dialog.course_filter }}">
+
+    {% if dialog.errors %}
+    <div class="error-container padding round" role="alert">
+      <strong>Please fix these values:</strong>
+      <ul>
+        {% for field, message in dialog.errors.items() %}
+        <li>{{ field }}: {{ message }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <div class="field label border{% if dialog.errors.name %} invalid{% endif %}">
+      <input id="student-name" name="name" type="text" value="{{ dialog.fields.name }}"
+             autocomplete="off" data-autofocus required>
+      <label for="student-name">Name</label>
+      {% if dialog.errors.name %}<span class="error">{{ dialog.errors.name }}</span>{% endif %}
+    </div>
+
+    <div class="row">
+      <div class="field label border max{% if dialog.errors.age %} invalid{% endif %}">
+        <input id="student-age" name="age" type="number" min="1" max="130" step="1"
+               value="{{ dialog.fields.age }}" required>
+        <label for="student-age">Age</label>
+        {% if dialog.errors.age %}<span class="error">{{ dialog.errors.age }}</span>
+        {% else %}<span class="helper">1 to 130</span>{% endif %}
+      </div>
+
+      <div class="field label border max{% if dialog.errors.birthday %} invalid{% endif %}">
+        <input id="student-birthday" name="birthday" type="date" value="{{ dialog.fields.birthday }}" required>
+        <label for="student-birthday">Birthday</label>
+        {% if dialog.errors.birthday %}<span class="error">{{ dialog.errors.birthday }}</span>
+        {% else %}<span class="helper">YYYY-MM-DD</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="field label border{% if dialog.errors.course %} invalid{% endif %}">
+      <input id="student-course" name="course" type="text" value="{{ dialog.fields.course }}"
+             autocomplete="off" list="courses" required>
+      <label for="student-course">Course</label>
+      {% if dialog.errors.course %}<span class="error">{{ dialog.errors.course }}</span>{% endif %}
+    </div>
+
+    <datalist id="courses">
+      {% for course in available_courses() %}
+      <option value="{{ course }}"></option>
+      {% endfor %}
+    </datalist>
+
+    <nav>
+      <button type="button" class="transparent" data-close>Cancel</button>
+      <button type="submit">{{ 'Save student' if dialog.mode == 'create' else 'Save changes' }}</button>
+    </nav>
+  </form>
+</dialog>
