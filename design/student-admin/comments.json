@@ -8,9 +8,9 @@
       "excerpt": "School DB",
       "comment": "Estaría genial que el nombre del colegio fuera configurable junto con su logo y que usando el material you de beercss se obtenga y use la paleta de colores del colegio",
       "createdAt": "2026-11-02T23:08:43.429Z",
-      "status": "open",
+      "status": "resolved",
       "sentAt": "2026-11-02T23:08:43.837Z",
-      "resolvedAt": null
+      "resolvedAt": "2026-11-03T08:35:07.326Z"
     },
     {
       "id": "xc8v0dfa",
@@ -19,9 +19,9 @@
       "excerpt": "",
       "comment": "Aquí debería ir el logo del colegio",
       "createdAt": "2026-11-02T23:09:13.697Z",
-      "status": "open",
+      "status": "resolved",
       "sentAt": "2026-11-02T23:09:14.032Z",
-      "resolvedAt": null
+      "resolvedAt": "2026-11-03T08:35:07.326Z"
     }
   ]
 }

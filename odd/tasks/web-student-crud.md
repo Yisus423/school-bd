@@ -39,7 +39,7 @@ S6. The web layer must not mutate stored data on invalid input, and must not
 
 - T1 (S3) — Design directions for the student admin UI: 3 artboards under
   `design/student-admin/` plus `design.json`. Route: inline. Status: done,
-  the docs slice commit (this commit).
+  the docs slice commit `9fb3615`.
 - T2 (S1, S5) — FastAPI app plus Jinja2 templates and local static assets
   (BeerCSS served from `static/vendor/`, no CDN). Route: inline. Status: done,
   commits `af31e13` (stack and vendored assets) and `771f2b2` (app).
@@ -71,11 +71,21 @@ Strategy: the feature lands as four reviewable commits on the feature branch
 | Stack + assets | `af31e13` | `pyproject.toml`, `uv.lock`, `static/vendor/` | deps only (high-risk slice, kept alone) |
 | App | `771f2b2` | `web.py`, `settings.py`, `school.toml`, `templates/`, `static/app.css`, `static/app.js`, `static/logo.svg` | ~880 |
 | Tests | `0df5481` | `tests/test_web.py`, `tests/test_settings.py` | ~520 |
-| Docs | this commit | `README.md`, `odd/tasks/`, `design/student-admin/` | ~290 |
+| Docs | `9fb3615` | `README.md`, `odd/tasks/`, `design/student-admin/` | ~290 |
+| Fix | `f572177` | `web.py`, `tests/test_web.py` | ~45 |
 
-The measured total is 1695 authored changed lines, past the ~400-line review
-slice, so if this becomes a pull request it must be delivered as chained PRs on
-these exact boundaries (stack/assets, app, tests, docs) rather than one review.
+Accounting note (parent): the raw count runs to 3393 authored lines because the
+three artboards under `design/student-admin/` are ~2000 lines of self-contained
+alternative HTML whose purpose is to be compared, not shipped; the product code
+is the stack/assets, app, tests, fix and docs slices above. Either way the total
+is past the ~400-line review slice, so if this becomes a pull request it must be
+delivered as chained PRs on these exact boundaries (stack/assets, app, tests,
+fix, docs) rather than one review.
+
+The `## Log` endpoint differs from the task commits in one respect: the artboards
+were revised once, in the last docs commit, so that the chosen direction shows the
+resolved branding comments (the logo slot and the note that name, logo and seed
+colour come from `school.toml`).
 
 ## Log
 
@@ -160,6 +170,35 @@ interpolated into a URL: the logo validator is the only guard, and the delegated
 test found it permissive) and item 5 (four new runtime dependencies and four
 vendored browser assets)`. Verification: the independent verifier ran over the
 diff of `feat/web-student-crud`; its verdict is recorded in the Engram mirror `odd/web-student-crud/tasks` together with the final commit hashes.
+
+L13 (defect found and fixed, parent, 2026-11-02): the parent adversarial pass
+found that `GET /students/99999999999999999999/edit` answered `500`:
+`database.get_student` raised `OverflowError: Python int too large to convert to
+SQLite INTEGER` inside the driver. Fixed in commit `f572177` with
+`web.py:is_stored_id`, a guard on the positive signed 64-bit range applied to
+every route that takes a student id, plus three tests in `tests/test_web.py`.
+Out-of-range identifiers now follow the missing-student contract (`404` fragment
+for HTMX, `303` otherwise) and writes return before any database call. The same
+`OverflowError` exists in the CLI (`uv run python cli.py show
+99999999999999999999` prints a traceback); that is pre-existing phase-1 behaviour,
+is NOT changed here, and stays as an open follow-up for the user.
+
+L14 (verification status, parent, 2026-11-02): the independent verifier
+(`gentle-ai-verify`, task `mw0ff7f6-2-nz09`) returned NO verdict: it stalled and
+timed out with a harness error (`Extension package "builtin:codemode" ...
+registers tool codemode, so built-in extension codemode was not loaded`). It was
+not retried. What the parent ran instead, labelled as parent-run and not as
+independent verification: `uv run pytest -q` -> 70 passed; a mutation run in a
+`mktemp -d` scratch copy (dropping `HX-Trigger` failed 3 tests, forcing `422` to
+`200` and disabling the logo validator failed 11); `sha256sum` over the four
+vendored files against the table in `static/vendor/README.md` -> all four match;
+`uv lock --check` -> resolved 34 packages; `grep` for external references across
+`templates/`, `static/app.css` and `static/app.js` -> none; a branding matrix
+(12 rejected logo values including `../secret.png`, `/etc/passwd`, `a/./b.png`,
+`a//b.png`, `logo.svg?x=1`, `logo.svg/`, backslashes and percent-encoding; 3
+accepted) and an input matrix (age `130` accepted, `0`/`131`/`abc`/empty/`3.5`
+rejected, four birthday forms, markup in `name` and in `q` escaped in the
+rendered HTML). Open proof gap: no independent pass over the two high-risk items.
 
 L12 (known cosmetic, parent, 2026-11-02): this environment's Starlette emits
 `StarletteDeprecationWarning: Using httpx with starlette.testclient is
