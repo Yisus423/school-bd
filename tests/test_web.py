@@ -432,3 +432,39 @@ def test_custom_branding_is_rendered_on_the_students_page(
     assert 'src="/static/custom-logo.svg"' in response.text
     assert 'data-school-color="#123456"' in response.text
     assert stored_students() == SEEDED_STUDENTS
+
+
+@pytest.mark.parametrize("student_id", [-1, 0, 2**63, 10**20])
+def test_htmx_requests_for_ids_outside_sqlite_range_return_not_found(
+    client, seeded_database, student_id
+) -> None:
+    """SQLite stores identifiers as signed 64-bit integers."""
+    response = client.get(f"/students/{student_id}/edit", headers=HTMX_HEADERS)
+
+    assert response.status_code == 404
+    assert "not found" in response.text.lower()
+
+
+@pytest.mark.parametrize("student_id", [2**63, 10**20])
+def test_writes_for_ids_outside_sqlite_range_never_touch_the_table(
+    client, seeded_database, student_id
+) -> None:
+    before = stored_students()
+
+    update = client.post(
+        f"/students/{student_id}",
+        data={"name": "Huge", "age": "10", "birthday": "2011-01-01", "course": "X"},
+        headers=HTMX_HEADERS,
+    )
+    delete = client.post(f"/students/{student_id}/delete", data={}, headers=HTMX_HEADERS)
+
+    assert update.status_code == 404
+    assert delete.status_code == 404
+    assert stored_students() == before
+
+
+def test_plain_request_for_an_id_outside_sqlite_range_redirects(client, seeded_database) -> None:
+    response = client.get(f"/students/{10**20}/edit")
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/students"

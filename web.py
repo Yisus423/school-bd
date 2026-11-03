@@ -41,9 +41,17 @@ STUDENT_CHANGED = '{"student-changed": true}'
 Settings = Annotated[SchoolSettings, Depends(get_school_settings)]
 
 
+SQLITE_INTEGER_MAX = 2**63 - 1
+
+
 def is_htmx(request: Request) -> bool:
     """Report whether the request came from HTMX."""
     return request.headers.get("HX-Request", "").lower() == "true"
+
+
+def is_stored_id(student_id: int) -> bool:
+    """Report whether the identifier can be stored in SQLite's 64-bit integer."""
+    return 1 <= student_id <= SQLITE_INTEGER_MAX
 
 
 def filter_students(
@@ -293,6 +301,8 @@ def edit_student_dialog(
     course_filter: str = "",
 ) -> HTMLResponse:
     """Edit dialog prefilled with one student."""
+    if not is_stored_id(student_id):
+        return missing_student_response(request, settings, student_id, q, course_filter)
     student = db.get_student(student_id)
     if student is None:
         return missing_student_response(request, settings, student_id, q, course_filter)
@@ -325,6 +335,8 @@ def delete_student_dialog(
     course_filter: str = "",
 ) -> HTMLResponse:
     """Confirmation dialog shown before deleting one student."""
+    if not is_stored_id(student_id):
+        return missing_student_response(request, settings, student_id, q, course_filter)
     student = db.get_student(student_id)
     if student is None:
         return missing_student_response(request, settings, student_id, q, course_filter)
@@ -375,6 +387,8 @@ def update_student(
     course_filter: Annotated[str, Form()] = "",
 ) -> HTMLResponse:
     """Validate and apply an update to one student."""
+    if not is_stored_id(student_id):
+        return missing_student_response(request, settings, student_id, q, course_filter)
     values = {"name": name, "age": age, "birthday": birthday, "course": course}
     try:
         student = db.edit_student(
@@ -398,6 +412,8 @@ def remove_student(
     course_filter: Annotated[str, Form()] = "",
 ) -> HTMLResponse:
     """Delete one student after the confirmation dialog."""
+    if not is_stored_id(student_id):
+        return missing_student_response(request, settings, student_id, q, course_filter)
     if not db.delete_student(student_id):
         return missing_student_response(request, settings, student_id, q, course_filter)
     return write_response(request, settings, q, course_filter)
