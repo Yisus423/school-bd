@@ -200,6 +200,33 @@ accepted) and an input matrix (age `130` accepted, `0`/`131`/`abc`/empty/`3.5`
 rejected, four birthday forms, markup in `name` and in `q` escaped in the
 rendered HTML). Open proof gap: no independent pass over the two high-risk items.
 
+L15 (user correction, 2026-11-02, verbatim): "Podríamos quitar ese 1 to 130 del dialogo
+(es solo verificación interna, al usuario ni le importa hasta que lo pone) y el formato
+yyyy-mm-dd (el navegador te abre el calendario)." Applied in the follow-up slice
+`refactor(web): drop the static field hints from the student dialog`:
+`templates/partials/form.html` no longer renders the two `<span class="helper">`
+texts. The `min="1" max="130"` attributes and `type="date"` stay (they are the
+mechanical constraints and the browser calendar), and the field errors still appear
+on rejection. Server-side validation rules are unchanged: the API and the CLI still
+require an age of `1..130` and a real `YYYY-MM-DD` birthday.
+
+L16 (user correction, 2026-11-02, verbatim): "htmx lo elegí yo, ya sabía que era de los
+mejores para paginas 'semi-estaticas'." Correction to L9's framing: the HTMX choice is
+the user's own, not an inheritance from the previous session's plan. The stack in S1
+stands as confirmed by the user.
+
+L17 (user, 2026-11-02, verbatim, deferred): "Este es un proyecto para un curso y me
+gustaría demostrar capaz un setup on /admin dobde pueda cambiar el logo y cambie todo el
+colorscheme, pero eso queda para después." Recorded as a FUTURE phase, not started.
+Its implications, for whoever picks it up: an `/admin` route that mutates branding needs
+authentication (the app has none today); `settings.py` currently loads `school.toml`
+through `lru_cache` at process start, so a write path needs atomic file replacement or a
+`settings` table plus cache invalidation; a logo upload is a file-write surface and must
+be validated and confined to `static/` like `SchoolSettings.logo` already is; and the
+palette can then be derived from the uploaded logo image instead of the seed color
+(`ui("theme", "/static/<logo>")`). Design it as its own ODD feature document when the
+user green-lights it.
+
 L12 (known cosmetic, parent, 2026-11-02): this environment's Starlette emits
 `StarletteDeprecationWarning: Using httpx with starlette.testclient is
 deprecated; install httpx2 instead` on every test run. The suite passes; the
