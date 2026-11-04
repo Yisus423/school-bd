@@ -3,7 +3,7 @@
   <h5 id="delete-student-title">Delete student</h5>
   <p>
     Delete <strong>{{ dialog.student.name }}</strong> (ID {{ dialog.student.id }},
-    {{ dialog.student.course }})? This removes the record from the database and cannot be undone.
+    {{ dialog.student.course }})? This cannot be undone.
   </p>
 
   <form method="post" action="/students/{{ dialog.student.id }}/delete"

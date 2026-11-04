@@ -2,8 +2,6 @@
 {% set action = '/students' if dialog.mode == 'create' else '/students/' ~ dialog.student_id %}
 <dialog id="student-form" aria-labelledby="student-form-title"{% if dialog.open_dialog %} open{% endif %}>
   <h5 id="student-form-title">{{ 'Add student' if dialog.mode == 'create' else 'Edit student ' ~ dialog.student_id }}</h5>
-  <p>Values are validated with the same rules as the CLI and the API.</p>
-
   <form method="post" action="{{ action }}" hx-post="{{ action }}"
         hx-target="#students-rows" hx-swap="outerHTML">
     <input type="hidden" name="q" value="{{ dialog.q }}">

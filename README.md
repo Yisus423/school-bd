@@ -77,8 +77,9 @@ server with reload enabled.
 ```toml
 [school]
 name = "School DB"
-logo = "logo.svg"   # path inside static/
-color = "#0b57d0"   # seed for the Material You palette
+logo = "logo.svg"    # path inside static/
+color = "#0b57d0"    # seed color, and the palette fallback
+palette = "logo"     # source of the Material You palette: "logo" or "color"
 ```
 
 | Variable | Overrides |
@@ -86,10 +87,23 @@ color = "#0b57d0"   # seed for the Material You palette
 | `SCHOOL_NAME` | The name in the app bar and the page title. |
 | `SCHOOL_LOGO` | The logo image, relative to `static/` (no `..`, no absolute paths). |
 | `SCHOOL_COLOR` | The seed color as `#RRGGBB`. |
+| `SCHOOL_PALETTE` | `logo` or `color`. |
 
 BeerCSS derives the entire Material You palette (primary, surfaces, containers, and
-their contrast pairs) from that single seed color at load time, so the whole UI
-follows the school's color.
+their contrast pairs) from one source, so the whole UI follows the school's
+branding:
+
+* `palette = "logo"` samples the logo image: change the image and the colorscheme
+  follows. The browser fetches the logo, rasterizes it at 64 px and reads its
+  dominant color, so the page paints with the default palette in `static/app.css`
+  until that resolves, and a mostly transparent or many-colored logo gives a duller
+  seed. The logo must be same-origin and, when it is an SVG, self-contained (no
+  external fonts, images or scripts).
+* `palette = "color"` derives the palette from `SCHOOL_COLOR` instead: no extra
+  request, no flash, and exactly the same theme with or without JavaScript.
+
+If the logo cannot be read, the page falls back to `SCHOOL_COLOR`, and then to the
+default palette in `static/app.css`.
 
 ### Browser assets
 

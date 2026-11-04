@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/static/app.css">
   <link rel="icon" href="/static/{{ settings.logo }}">
 </head>
-<body data-school-color="{{ settings.color }}">
+<body data-theme-source="{{ settings.theme_source }}" data-theme-fallback="{{ settings.color }}">
   <a class="skip" href="#main">Skip to content</a>
 
   <header>
@@ -47,9 +47,7 @@
 
     <article class="border round">
       <table>
-        <caption>
-          Every student stored in <code>db.sqlite3</code>, ordered by identifier.
-        </caption>
+        <caption>All students, ordered by ID.</caption>
         <thead>
           <tr>
             <th scope="col" class="numeric">ID</th>
@@ -62,11 +60,7 @@
         </thead>
         {% include 'partials/rows.html' %}
       </table>
-      <nav>
-        {% include 'partials/count.html' %}
-        <span class="max"></span>
-        <span>Validated by <code>models.py</code> · served by <code>web.py</code></span>
-      </nav>
+      <nav>{% include 'partials/count.html' %}</nav>
     </article>
   </main>
 
@@ -75,10 +69,7 @@
   </div>
 
   <footer>
-    <nav>
-      <span class="max">{{ settings.name }} · student administration</span>
-      <span>SQLite · <code>students</code></span>
-    </nav>
+    <nav>{{ settings.name }} · student administration</nav>
   </footer>
 
   <script src="/static/vendor/htmx.min.js" defer></script>

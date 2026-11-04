@@ -1,18 +1,29 @@
 // BeerCSS theming plus the small amount of glue HTMX needs for dialogs.
 //
-// The dynamic theme comes from the school color in school.toml: BeerCSS derives
-// the whole Material You palette from that single seed.
+// The palette comes from the source configured in school.toml: the logo image
+// (`palette = "logo"`) or the school color (`palette = "color"`). BeerCSS derives
+// the whole Material You palette from that single source. If the logo cannot be
+// read, the school color is tried next; if that fails too, the default palette in
+// app.css stays in place.
 
 import ui from "./vendor/beer.min.js";
 import "./vendor/material-dynamic-colors.min.js";
 
-const seed = document.body.dataset.schoolColor;
-if (seed) {
+const { themeSource, themeFallback } = document.body.dataset;
+
+async function applyTheme(source) {
+  if (!source) return false;
   try {
-    await ui("theme", seed);
+    await ui("theme", source);
+    return true;
   } catch (error) {
-    console.warn("Could not apply the school color palette:", error);
+    console.warn(`Could not derive the palette from ${source}:`, error);
+    return false;
   }
+}
+
+if (!(await applyTheme(themeSource)) && themeFallback !== themeSource) {
+  await applyTheme(themeFallback);
 }
 
 // A swapped dialog fragment has to be opened explicitly.

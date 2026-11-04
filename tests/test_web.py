@@ -77,7 +77,8 @@ def test_students_page_renders_seeded_rows_and_local_assets(
     assert 'src="/static/vendor/htmx.min.js"' in response.text
     assert 'href="/static/vendor/beer.min.css"' in response.text
     assert 'href="/static/app.css"' in response.text
-    assert 'data-school-color="#0b57d0"' in response.text
+    assert 'data-theme-source="' in response.text
+    assert 'data-theme-fallback="' in response.text
     assert stored_students() == SEEDED_STUDENTS
 
 
@@ -430,7 +431,29 @@ def test_custom_branding_is_rendered_on_the_students_page(
     assert response.status_code == 200
     assert "River City School" in response.text
     assert 'src="/static/custom-logo.svg"' in response.text
-    assert 'data-school-color="#123456"' in response.text
+    assert 'data-theme-source="/static/custom-logo.svg"' in response.text
+    assert 'data-theme-fallback="#123456"' in response.text
+    assert stored_students() == SEEDED_STUDENTS
+
+
+def test_palette_setting_selects_the_theme_source_on_the_page(
+    client, seeded_database
+) -> None:
+    configured = settings.SchoolSettings(
+        name="River City School",
+        logo="custom-logo.svg",
+        color="#123456",
+        palette="color",
+    )
+    web.app.dependency_overrides[settings.get_school_settings] = lambda: configured
+    try:
+        response = client.get("/students")
+    finally:
+        web.app.dependency_overrides.pop(settings.get_school_settings, None)
+
+    assert response.status_code == 200
+    assert 'data-theme-source="#123456"' in response.text
+    assert 'data-theme-fallback="#123456"' in response.text
     assert stored_students() == SEEDED_STUDENTS
 
 

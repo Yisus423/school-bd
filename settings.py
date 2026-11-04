@@ -1,9 +1,9 @@
 """Configurable school branding for the web UI.
 
-The school name, logo file and seed color come from ``school.toml`` and can be
-overridden with the ``SCHOOL_NAME``, ``SCHOOL_LOGO`` and ``SCHOOL_COLOR``
-environment variables. The seed color feeds BeerCSS's dynamic theme, which
-derives the full Material You palette used by every page.
+The school name, logo, seed color and palette source come from ``school.toml``
+and can be overridden with the ``SCHOOL_NAME``, ``SCHOOL_LOGO``, ``SCHOOL_COLOR``
+and ``SCHOOL_PALETTE`` environment variables. BeerCSS derives the full Material
+You palette used by every page from either the logo image or the seed color.
 """
 
 import os
@@ -12,7 +12,7 @@ import tomllib
 from collections.abc import Mapping
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, field_validator
 
@@ -23,6 +23,7 @@ ENVIRONMENT_VARIABLES = {
     "name": "SCHOOL_NAME",
     "logo": "SCHOOL_LOGO",
     "color": "SCHOOL_COLOR",
+    "palette": "SCHOOL_PALETTE",
 }
 
 _SAFE_LOGO = re.compile(r"[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*\Z")
@@ -35,6 +36,7 @@ class SchoolSettings(BaseModel):
     name: str = "School DB"
     logo: str = "logo.svg"
     color: str = "#0b57d0"
+    palette: Literal["color", "logo"] = "logo"
 
     @field_validator("name")
     @classmethod
@@ -66,6 +68,19 @@ class SchoolSettings(BaseModel):
         if not _HEX_COLOR.fullmatch(value):
             raise ValueError("school color must use the #RRGGBB format")
         return value.lower()
+
+    @property
+    def theme_source(self) -> str:
+        """Value the page hands to BeerCSS's ``ui("theme", ...)``.
+
+        With ``palette = "logo"`` it is the logo path under the app's ``/static``
+        mount, so changing the logo changes the whole colorscheme; with
+        ``palette = "color"`` it is the seed color, which needs no image and does
+        not depend on JavaScript running.
+        """
+        if self.palette == "logo":
+            return f"/static/{self.logo}"
+        return self.color
 
 
 def load_school_settings(
