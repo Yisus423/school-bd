@@ -35,11 +35,27 @@ S5. Preserved behavior and contracts (from phase 1, unchanged by this phase):
 S6. The web layer must not mutate stored data on invalid input, and must not
     duplicate persistence logic: every route delegates to `database.py`.
 
+S7. Palette source, user decision (2026-11-02): "aplicas lo del pallete en el
+    school.toml". `school.toml` decides where the Material You palette comes from:
+    `palette = "logo"` samples the logo image, so changing the logo changes the
+    colorscheme, and `palette = "color"` derives it from `SCHOOL_COLOR`. The page
+    must survive a failed sampling: it receives the resolved source plus the color
+    as a fallback, and the CSS default palette is the last resort. This also
+    discharges the canvas comment `2nkbkn3z` (the school's own palette, via Material
+    You).
+
+S8. Visible copy, user decision (2026-11-02): "quitemos toda la charla interna
+    innecesaria". User-facing text never names files, tools, layers or storage
+    (`db.sqlite3`, `models.py`, `web.py`, `CLI`, `API`, `SQLite`); a constraint shows
+    up as an input attribute (`min`, `max`, `type`) and as an error only when a value
+    is rejected. Explanations for developers live in code comments and docs, never
+    on the page.
+
 ## Tasks
 
 - T1 (S3) — Design directions for the student admin UI: 3 artboards under
-  `design/student-admin/` plus `design.json`. Route: inline. Status: done,
-  the docs slice commit `9fb3615`.
+  `design/student-admin/` plus `design.json`. Route: inline. Status: done, docs
+  slice `9fb3615`.
 - T2 (S1, S5) — FastAPI app plus Jinja2 templates and local static assets
   (BeerCSS served from `static/vendor/`, no CDN). Route: inline. Status: done,
   commits `af31e13` (stack and vendored assets) and `771f2b2` (app).
@@ -57,12 +73,16 @@ S6. The web layer must not mutate stored data on invalid input, and must not
   unchanged, plus one CLI regression test. Route: delegated
   (`gentle-ai-worker`, task `mw07ng7e-1-6ih9`). Status: done, commit `0df5481`.
 - T8 (S5) — Docs: README gains the web phase (setup, run, routes, branding) and
-  the task evidence is recorded here. Route: inline. Status: done, commit
-  `0da0c6d` (docs slice).
+  the task evidence is recorded here. Route: inline. Status: done, docs slice
+  `9fb3615`.
+- T9 (S7) — Palette source in `school.toml` (`logo` or `color`) with its fallback
+  chain and tests. Route: inline. Status: done, commit `5a8c3d3`.
+- T10 (S8) — Remove the internal talk from the rendered page and dialogs. Route:
+  inline. Status: done, commit `5a8c3d3`.
 
 ## Delivery
 
-Strategy: the feature lands as four reviewable commits on the feature branch
+Strategy: the feature lands as reviewable commits on the feature branch
 `feat/web-student-crud`, branched from `master` per the ODD default-branch rule;
 `master` is untouched. Pushing, a pull request and the merge stay with the user.
 
@@ -73,6 +93,7 @@ Strategy: the feature lands as four reviewable commits on the feature branch
 | Tests | `0df5481` | `tests/test_web.py`, `tests/test_settings.py` | ~520 |
 | Docs | `9fb3615` | `README.md`, `odd/tasks/`, `design/student-admin/` | ~290 |
 | Fix | `f572177` | `web.py`, `tests/test_web.py` | ~45 |
+| Branding + copy | `5a8c3d3` | `settings.py`, `school.toml`, `static/app.js`, `static/logo.svg`, `templates/`, tests, `README.md` | ~90 |
 
 Accounting note (parent): the raw count runs to 3393 authored lines because the
 three artboards under `design/student-admin/` are ~2000 lines of self-contained
@@ -168,8 +189,15 @@ L10 (implementation evidence, parent, 2026-11-02):
 L11 (risk, parent, 2026-11-02): `Risk: item 2 (a user-configurable path is
 interpolated into a URL: the logo validator is the only guard, and the delegated
 test found it permissive) and item 5 (four new runtime dependencies and four
-vendored browser assets)`. Verification: the independent verifier ran over the
-diff of `feat/web-student-crud`; its verdict is recorded in the Engram mirror `odd/web-student-crud/tasks` together with the final commit hashes.
+vendored browser assets)`. Verification: see L14 — the independent verifier
+returned no verdict, so the checks behind this line are the parent-run ones plus
+the adversarial matrix, and the remaining proof gap is recorded there.
+
+L12 (known cosmetic, parent, 2026-11-02): this environment's Starlette emits
+`StarletteDeprecationWarning: Using httpx with starlette.testclient is
+deprecated; install httpx2 instead` on every test run. The suite passes; the
+project keeps `httpx` in the development group and `pyproject.toml` is otherwise
+untouched.
 
 L13 (defect found and fixed, parent, 2026-11-02): the parent adversarial pass
 found that `GET /students/99999999999999999999/edit` answered `500`:
@@ -227,8 +255,17 @@ palette can then be derived from the uploaded logo image instead of the seed col
 (`ui("theme", "/static/<logo>")`). Design it as its own ODD feature document when the
 user green-lights it.
 
-L12 (known cosmetic, parent, 2026-11-02): this environment's Starlette emits
-`StarletteDeprecationWarning: Using httpx with starlette.testclient is
-deprecated; install httpx2 instead` on every test run. The suite passes; the
-project keeps `httpx` in the development group and `pyproject.toml` is otherwise
-untouched.
+L18 (user, 2026-11-02, verbatim): "Primero quitemos toda la charla interna
+innecesaria, aplicas lo del pallete en el school.toml y ya de ahí lo próximo sería
+hacer un login o la base de los tres tipos de usuario (student, teacher y admin)".
+Both authorized items are done in commit `5a8c3d3` (specs S7 and S8). Evidence:
+`uv run pytest -q` -> 74 passed, and the rendered page, the add/edit dialog and the
+delete confirmation contain none of `db.sqlite3`, `models.py`, `web.py`, `CLI`,
+`API`, `SQLite`, `Validated by` or `record from the database`.
+
+L19 (user, 2026-11-02, verbatim, NEXT PHASE — not started): "lo próximo sería hacer
+un login o la base de los tres tipos de usuario (student, teacher y admin)". Read as
+the next phase, not as part of this one: the parent asked which of the two comes
+first (a login, or the three-role data model) before touching anything. Decisions
+that phase must settle: password hashing, session or cookie strategy, and the
+permission matrix each role gets over students, courses and branding.
