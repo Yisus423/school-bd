@@ -95,6 +95,14 @@ Strategy: the feature lands as reviewable commits on the feature branch
 | Fix | `f572177` | `web.py`, `tests/test_web.py` | ~45 |
 | Branding + copy | `5a8c3d3` | `settings.py`, `school.toml`, `static/app.js`, `static/logo.svg`, `templates/`, tests, `README.md` | ~90 |
 
+Outcome: the user validated the app in class and then asked to merge, so the feature was
+merged into `master` with `--no-ff` as `9c4bd48` (29 files, 3587 insertions, 12 deletions)
+and `uv run pytest -q` reports 74 passed on the merged `master`. No push was performed:
+publishing stays with the user. Note the remote state at merge time: the branch
+`feat/web-student-crud` is already on `origin` at `efcf959`, while `origin/master` is
+still at `bb36ae1`, so phase 1 (`6550349`) and this feature are not published on the
+default branch yet. The branch is kept locally and remotely.
+
 Accounting note (parent): the raw count runs to 3393 authored lines because the
 three artboards under `design/student-admin/` are ~2000 lines of self-contained
 alternative HTML whose purpose is to be compared, not shipped; the product code
@@ -262,6 +270,15 @@ Both authorized items are done in commit `5a8c3d3` (specs S7 and S8). Evidence:
 `uv run pytest -q` -> 74 passed, and the rendered page, the add/edit dialog and the
 delete confirmation contain none of `db.sqlite3`, `models.py`, `web.py`, `CLI`,
 `API`, `SQLite`, `Validated by` or `record from the database`.
+
+L20 (user, 2026-11-02, verbatim): "lo probe en el curso y funciono, mergea y pasamos en
+la siguiente sesion a lo siguiente, quede con el profesor de agregar un login y tener
+estudiantes y profesores". Two things came in this entry: field validation (the user ran
+the app in class, which is the strongest evidence this phase has) and explicit merge
+authorization. Merged as `9c4bd48`; no push (publishing is the user's call). Scope
+correction for the next phase: L19 quoted "student, teacher y admin", while this entry
+says "un login y tener estudiantes y profesores" — the admin role is no longer mentioned
+and must be confirmed when that phase starts.
 
 L19 (user, 2026-11-02, verbatim, NEXT PHASE — not started): "lo próximo sería hacer
 un login o la base de los tres tipos de usuario (student, teacher y admin)". Read as
