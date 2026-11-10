@@ -1,0 +1,28 @@
+{
+  "title": "Student admin (School DB)",
+  "brief": "Browser admin for the school student database: list, create, edit and delete students. Stack is FastAPI + BeerCSS + HTMX, server-rendered with HTMX partial swaps, used by teachers on desktop and tablet. Three directions differ in layout strategy, not color.",
+  "feature": "odd/tasks/web-student-crud.md",
+  "artboards": [
+    {
+      "file": "01-dense-table.html",
+      "title": "Dense admin table",
+      "tradeoff": "Fastest to scan and manage many students on desktop, with filters and inline row actions; colder and the weakest on tablets and phones, and it hides how much a student record matters",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-card-grid.html",
+      "title": "Student cards grid",
+      "tradeoff": "Friendliest and touch-first, with per-course chips and per-student cards that read well on tablets; slow to scan past a few dozen students and impossible to compare column by column",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-master-detail.html",
+      "title": "Master-detail split",
+      "tradeoff": "Fastest for repeated editing because the list context never disappears and edits happen in place; needs a wide viewport and is the most complex layout to make responsive",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}

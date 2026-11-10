@@ -1,0 +1,18 @@
+# School branding for the web UI.
+# Every value can be overridden with an environment variable:
+# SCHOOL_NAME, SCHOOL_LOGO (path inside static/), SCHOOL_COLOR (#RRGGBB)
+# and SCHOOL_PALETTE (color or logo).
+
+[school]
+name = "School DB"
+logo = "logo.svg"
+color = "#0b57d0"
+
+# Where the Material You palette comes from:
+#   "logo"  -> BeerCSS samples the logo image, so changing the logo changes the
+#              whole colorscheme. The page paints with the CSS default palette
+#              until the image is sampled, and falls back to SCHOOL_COLOR if the
+#              image cannot be read.
+#   "color" -> the palette comes from SCHOOL_COLOR: deterministic, no extra
+#              request, and the same with or without JavaScript.
+palette = "logo"

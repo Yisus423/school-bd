@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Students · School DB — card grid</title>
+<style>
+  :root {
+    --primary: #6750a4; --on-primary: #ffffff; --primary-container: #eaddff; --on-primary-container: #21005d;
+    --secondary-container: #e8def8; --on-secondary-container: #1d192b;
+    --surface: #fef7ff; --surface-1: #f7f0fb; --on-surface: #1d1b20; --on-surface-variant: #49454f;
+    --outline: #79747e; --outline-variant: #cac4d0;
+    --error: #b3261e; --error-container: #f9dedc; --on-error-container: #410e0b;
+    --r-s: 8px; --r-m: 12px; --r-l: 20px; --r-full: 999px;
+    --e1: 0 1px 2px rgba(0,0,0,.18), 0 1px 3px 1px rgba(0,0,0,.10);
+    --e2: 0 1px 2px rgba(0,0,0,.18), 0 2px 6px 2px rgba(0,0,0,.10);
+    --e3: 0 4px 8px 3px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.20);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--surface); color: var(--on-surface);
+    font: 14px/1.5 system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  .skip { position: absolute; left: -9999px; }
+  .skip:focus { left: 12px; top: 12px; z-index: 60; background: var(--primary); color: var(--on-primary); padding: 8px 12px; border-radius: var(--r-s); }
+  :focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+  header.top {
+    display: flex; align-items: center; gap: 12px; padding: 18px 28px; border-bottom: 1px solid var(--outline-variant);
+    background: var(--surface);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; }
+  .brand .dot { width: 30px; height: 30px; border-radius: 10px; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; }
+  header.top nav { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  header.top nav a { color: var(--on-surface-variant); text-decoration: none; padding: 8px 14px; border-radius: var(--r-full); font-size: 13.5px; }
+  header.top nav a[aria-current="page"] { background: var(--secondary-container); color: var(--on-secondary-container); font-weight: 500; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--primary-container); color: var(--on-primary-container); display: grid; place-items: center; font-weight: 600; font-size: 13px; }
+
+  main { max-width: 1180px; margin: 0 auto; padding: 26px 28px 120px; }
+  .lede h1 { margin: 0 0 4px; font-size: 28px; font-weight: 400; letter-spacing: -.2px; }
+  .lede p { margin: 0; color: var(--on-surface-variant); }
+
+  .stats { display: flex; gap: 12px; margin: 20px 0 4px; flex-wrap: wrap; }
+  .stat { background: var(--secondary-container); color: var(--on-secondary-container); border-radius: var(--r-m); padding: 12px 18px; min-width: 132px; }
+  .stat b { display: block; font-size: 24px; font-weight: 500; line-height: 1.1; }
+  .stat span { font-size: 12px; opacity: .8; }
+
+  .search-row { display: flex; gap: 10px; align-items: center; margin: 22px 0 14px; flex-wrap: wrap; }
+  .search {
+    display: flex; align-items: center; gap: 10px; background: var(--surface-1);
+    border: 1px solid var(--outline-variant); border-radius: var(--r-full); padding: 8px 16px; flex: 1 1 320px; max-width: 460px;
+  }
+  .search input { border: 0; background: transparent; font: inherit; flex: 1; color: var(--on-surface); }
+  .search input:focus { outline: none; }
+  .search:focus-within { outline: 3px solid var(--primary); outline-offset: 1px; }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .chip-filter {
+    font: inherit; font-size: 13px; cursor: pointer; border: 1px solid var(--outline-variant);
+    background: transparent; color: var(--on-surface-variant); padding: 7px 15px; border-radius: var(--r-s);
+  }
+  .chip-filter[aria-pressed="true"] { background: var(--secondary-container); color: var(--on-secondary-container); border-color: transparent; font-weight: 500; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .student {
+    background: #fff; border: 1px solid var(--outline-variant); border-radius: var(--r-l); padding: 18px;
+    display: grid; gap: 14px; box-shadow: var(--e1);
+  }
+  .student[hidden] { display: none; }
+  .student .head { display: flex; align-items: center; gap: 14px; }
+  .initials {
+    width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 18px; font-weight: 600; background: var(--primary-container); color: var(--on-primary-container); flex: none;
+  }
+  .student h2 { margin: 0; font-size: 16.5px; font-weight: 500; }
+  .student .meta { font-size: 12.5px; color: var(--on-surface-variant); }
+  .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+  .facts div { background: var(--surface-1); border-radius: var(--r-s); padding: 8px 12px; }
+  .facts dt { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--on-surface-variant); margin: 0; }
+  .facts dd { margin: 2px 0 0; font-size: 14px; font-weight: 500; }
+  .course-pill { display: inline-block; background: var(--primary-container); color: var(--on-primary-container); border-radius: var(--r-full); padding: 3px 12px; font-size: 12.5px; }
+  .actions { display: flex; gap: 8px; border-top: 1px solid #ece6f0; padding-top: 12px; }
+  .btn { font: inherit; font-weight: 500; border: 0; border-radius: var(--r-full); padding: 9px 18px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-filled { background: var(--primary); color: var(--on-primary); box-shadow: var(--e1); }
+  .btn-tonal { background: var(--secondary-container); color: var(--on-secondary-container); }
+  .btn-text { background: transparent; color: var(--primary); }
+  .btn-text.danger { color: var(--error); }
+  .btn-ghost { background: transparent; color: var(--on-surface-variant); border: 1px solid var(--outline-variant); }
+
+  .empty { padding: 60px 20px; text-align: center; color: var(--on-surface-variant); }
+
+  .fab {
+    position: fixed; right: 32px; bottom: 32px; height: 60px; padding: 0 24px; border-radius: var(--r-l);
+    background: var(--primary); color: var(--on-primary); border: 0; box-shadow: var(--e3);
+    font: inherit; font-weight: 500; font-size: 15px; display: inline-flex; align-items: center; gap: 10px; cursor: pointer;
+  }
+
+  dialog { border: 0; border-radius: 28px; padding: 0; box-shadow: var(--e3); width: min(560px, calc(100vw - 32px)); color: var(--on-surface); background: var(--surface); }
+  dialog::backdrop { background: rgba(0,0,0,.42); }
+  .sheet-head { padding: 26px 28px 6px; }
+  .sheet-head h2 { margin: 0 0 6px; font-size: 22px; font-weight: 500; }
+  .sheet-head p { margin: 0; font-size: 13px; color: var(--on-surface-variant); }
+  .sheet-body { padding: 14px 28px 4px; display: grid; gap: 18px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .field { display: grid; gap: 6px; }
+  .field label { font-size: 12px; color: var(--on-surface-variant); }
+  .field input, .field select {
+    font: inherit; background: var(--surface-1); color: var(--on-surface);
+    border: 1px solid var(--outline-variant); border-radius: var(--r-s); padding: 12px 14px;
+  }
+  .field input:focus { outline: none; }
+  .field { position: relative; }
+  .field:focus-within input, .field:focus-within select { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+  .hint { font-size: 11.5px; color: var(--on-surface-variant); }
+  .errors { display: none; background: var(--error-container); color: var(--on-error-container); border-radius: var(--r-m); padding: 14px 18px; }
+  .errors[data-open="true"] { display: block; }
+  .errors ul { margin: 6px 0 0; padding-left: 18px; }
+  .sheet-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 20px 28px 26px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <span class="brand">
+    <span class="dot" aria-hidden="true">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.91V17h2V9L12 3Zm-7 9.18V17l7 3 7-3v-4.82l-7 3.82-7-3.82Z"/></svg>
+    </span>
+    School DB
+  </span>
+  <nav aria-label="Sections">
+    <a href="#main" aria-current="page">Students</a>
+    <a href="#main" title="Next phase">Courses</a>
+  </nav>
+  <span class="avatar" aria-hidden="true">MR</span>
+</header>
+
+<main id="main">
+  <div class="lede">
+    <h1>Students</h1>
+    <p>Everyone enrolled, grouped in cards. Tap a card to edit it in place.</p>
+  </div>
+
+  <div class="stats" id="stats">
+    <div class="stat"><b id="stat-total">8</b><span>students</span></div>
+    <div class="stat"><b id="stat-courses">7</b><span>courses</span></div>
+    <div class="stat"><b id="stat-age">14</b><span>average age</span></div>
+  </div>
+
+  <div class="search-row">
+    <label class="search" for="q">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="color:var(--on-surface-variant)"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14Z"/></svg>
+      <input id="q" type="search" placeholder="Search students" autocomplete="off">
+    </label>
+  </div>
+
+  <div class="chips" role="group" aria-label="Filter by course">
+    <button class="chip-filter" data-course="" aria-pressed="true">All</button>
+    <button class="chip-filter" data-course="Mathematics" aria-pressed="false">Mathematics</button>
+    <button class="chip-filter" data-course="Biology" aria-pressed="false">Biology</button>
+    <button class="chip-filter" data-course="History" aria-pressed="false">History</button>
+    <button class="chip-filter" data-course="Physics" aria-pressed="false">Physics</button>
+    <button class="chip-filter" data-course="Chemistry" aria-pressed="false">Chemistry</button>
+    <button class="chip-filter" data-course="Literature" aria-pressed="false">Literature</button>
+    <button class="chip-filter" data-course="Geography" aria-pressed="false">Geography</button>
+  </div>
+
+  <section class="grid" id="grid" aria-label="Students">
+    <article class="student" data-course="Mathematics" data-age="14" tabindex="0">
+      <div class="head">
+        <span class="initials" aria-hidden="true">MG</span>
+        <div><h2>Marta Giménez</h2><div class="meta">ID 1 · <span class="course-pill">Mathematics</span></div></div>
+      </div>
+      <dl class="facts">
+        <div><dt>Age</dt><dd>14</dd></div>
+        <div><dt>Birthday</dt><dd>2011-03-12</dd></div>
+      </dl>
+      <div class="actions">
+        <button class="btn btn-tonal" data-action="edit">Edit</button>
+        <button class="btn btn-text danger" data-action="delete">Delete</button>
+      </div>
+    </article>
+
+    <article class="student" data-course="Biology" data-age="13" tabindex="0">
+      <div class="head">
+        <span class="initials" aria-hidden="true">TF</span>
+        <div><h2>Tomás Ferreyra</h2><div class="meta">ID 2 · <span class="course-pill">Biology</span></div></div>
+      </div>
+      <dl class="facts">
+        <div><dt>Age</dt><dd>13</dd></div>
+        <div><dt>Birthday</dt><dd>2012-07-25</dd></div>
+      </dl>
+      <div class="actions">
+        <button class="btn btn-tonal" data-action="edit">Edit</button>
+        <button class="btn btn-text danger" data-action="delete">Delete</button>
+      </div>
+    </article>
+
+    <article class="student" data-course="History" data-age="15" tabindex="0">
+      <div class="head">
+        <span class="initials" aria-hidden="true">LI</span>
+        <div><h2>Lucía Ibarra</h2><div class="meta">ID 3 · <span class="course-pill">History</span></div></div>
+      </div>
+      <dl class="facts">
+        <div><dt>Age</dt><dd>15</dd></div>
+        <div><dt>Birthday</dt><dd>2010-11-02</dd></div>
+      </dl>
+      <div class="actions">
+        <button class="btn btn-tonal" data-action="edit">Edit</button>
+        <button class="btn btn-text danger" data-action="delete">Delete</button>
+      </div>
+    </article>
+
+    <article class="student" data-course="Physics" data-age="14" tabindex="0">
+      <div class="head">
+        <span class="initials" aria-hidden="true">NA</span>
+        <div><h2>Nicolás Aguirre</h2><div class="meta">ID 4 · <span class="course-pill">Physics</span></div></div>
+      </div>
+      <dl class="facts">
+        <div><dt>Age</dt><dd>14</dd></div>
+        <div><dt>Birthday</dt><dd>2011-05-19</dd></div>
+      </dl>
+      <div class="actions">
+        <button class="btn btn-tonal" data-action="edit">Edit</button>
+        <button class="btn btn-text danger" data-action="delete">Delete</button>
+      </div>
+    </article>
+
+    <article class="student" data-course="Mathematics" data-age="13" tabindex="0">
+      <div class="head">
+        <span class="initials" aria-hidden="true">CD</span>
+        <div><h2>Camila Duarte</h2><div class="meta">ID 5 · <span class="course-pill">Mathematics</span></div></div>
+      </div>
+      <dl class="facts">
+        <div><dt>Age</dt><dd>13</dd></div>
+        <div><dt>Birthday</dt><dd>2012-01-30</dd></div>
+      </dl>
+      <div class="actions">
+        <button class="btn btn-tonal" data-action="edit">Edit</button>
+        <button class="btn btn-text danger" data-action="delete">Delete</button>
+      </div>
+    </article>
+
+    <article class="student" data-course="Chemistry" data-age="16" tabindex="0">
+      <div class="head">
+        <span class="initials" aria-hidden="true">JS</span>
+        <div><h2>Joaquín Sosa</h2><div class="meta">ID 6 · <span class="course-pill">Chemistry</span></div></div>
+      </div>
+      <dl class="facts">
+        <div><dt>Age</dt><dd>16</dd></div>
+        <div><dt>Birthday</dt><dd>2009-09-14</dd></div>
+      </dl>
+      <div class="actions">
+        <button class="btn btn-tonal" data-action="edit">Edit</button>
+        <button class="btn btn-text danger" data-action="delete">Delete</button>
+      </div>
+    </article>
+
+    <article class="student" data-course="Literature" data-age="15" tabindex="0">
+      <div class="head">
+        <span class="initials" aria-hidden="true">VR</span>
+        <div><h2>Valentina Ríos</h2><div class="meta">ID 7 · <span class="course-pill">Literature</span></div></div>
+      </div>
+      <dl class="facts">
+        <div><dt>Age</dt><dd>15</dd></div>
+        <div><dt>Birthday</dt><dd>2010-04-08</dd></div>
+      </dl>
+      <div class="actions">
+        <button class="btn btn-tonal" data-action="edit">Edit</button>
+        <button class="btn btn-text danger" data-action="delete">Delete</button>
+      </div>
+    </article>
+
+    <article class="student" data-course="Geography" data-age="14" tabindex="0">
+      <div class="head">
+        <span class="initials" aria-hidden="true">MV</span>
+        <div><h2>Mateo Villalba</h2><div class="meta">ID 8 · <span class="course-pill">Geography</span></div></div>
+      </div>
+      <dl class="facts">
+        <div><dt>Age</dt><dd>14</dd></div>
+        <div><dt>Birthday</dt><dd>2011-08-21</dd></div>
+      </dl>
+      <div class="actions">
+        <button class="btn btn-tonal" data-action="edit">Edit</button>
+        <button class="btn btn-text danger" data-action="delete">Delete</button>
+      </div>
+    </article>
+  </section>
+
+  <p class="empty" id="empty" hidden>No students match this filter.</p>
+</main>
+
+<button class="fab" id="add">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2Z"/></svg>
+  Add student
+</button>
+
+<dialog id="form-dialog" aria-labelledby="form-title">
+  <form method="dialog" id="form" novalidate>
+    <div class="sheet-head">
+      <h2 id="form-title">Add student</h2>
+      <p>Same validation rules as the CLI and the API.</p>
+    </div>
+    <div class="sheet-body">
+      <div class="errors" id="errors" tabindex="-1" role="alert" aria-live="assertive"></div>
+      <div class="field">
+        <label for="f-name">Name</label>
+        <input id="f-name" type="text" autocomplete="off" required>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="f-age">Age</label>
+          <input id="f-age" type="number" min="1" max="130" step="1" required>
+          <span class="hint">1 to 130</span>
+        </div>
+        <div class="field">
+          <label for="f-birthday">Birthday</label>
+          <input id="f-birthday" type="date" required>
+          <span class="hint">YYYY-MM-DD</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-course">Course</label>
+        <input id="f-course" type="text" list="courses" autocomplete="off" required>
+        <datalist id="courses">
+          <option>Mathematics</option><option>Biology</option><option>History</option>
+          <option>Physics</option><option>Chemistry</option><option>Literature</option><option>Geography</option>
+        </datalist>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn btn-text" type="button" id="form-cancel">Cancel</button>
+      <button class="btn btn-filled" type="submit" id="form-save">Save student</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="confirm-dialog" aria-labelledby="confirm-title">
+  <div class="sheet-head">
+    <h2 id="confirm-title">Delete student?</h2>
+    <p id="confirm-text">This removes the record from the database.</p>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn-ghost" type="button" id="confirm-cancel">Cancel</button>
+    <button class="btn btn-filled" type="button" id="confirm-ok" style="background:var(--error);color:#fff">Delete</button>
+  </div>
+</dialog>
+
+<script>
+  const grid = document.getElementById('grid');
+  const q = document.getElementById('q');
+  const empty = document.getElementById('empty');
+  const formDialog = document.getElementById('form-dialog');
+  const confirmDialog = document.getElementById('confirm-dialog');
+  const errorsBox = document.getElementById('errors');
+  let activeCourse = '';
+  let editingCard = null;
+  let pendingCard = null;
+
+  const initialsOf = (name) => name.trim().split(/\s+/).slice(0, 2).map(p => p[0].toUpperCase()).join('');
+
+  function applyFilters() {
+    const term = q.value.trim().toLowerCase();
+    let shown = 0;
+    grid.querySelectorAll('.student').forEach(card => {
+      const matches = card.textContent.toLowerCase().includes(term) &&
+        (!activeCourse || card.dataset.course === activeCourse);
+      card.hidden = !matches;
+      if (matches) shown++;
+    });
+    empty.hidden = shown !== 0;
+    document.getElementById('stat-total').textContent = grid.querySelectorAll('.student').length;
+    const courses = new Set([...grid.querySelectorAll('.student')].map(c => c.dataset.course));
+    document.getElementById('stat-courses').textContent = courses.size;
+    const ages = [...grid.querySelectorAll('.student')].map(c => Number(c.dataset.age));
+    document.getElementById('stat-age').textContent = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : '—';
+  }
+  q.addEventListener('input', applyFilters);
+  document.querySelectorAll('.chip-filter').forEach(chip => chip.addEventListener('click', () => {
+    activeCourse = chip.dataset.course;
+    document.querySelectorAll('.chip-filter').forEach(other => other.setAttribute('aria-pressed', String(other === chip)));
+    applyFilters();
+  }));
+
+  function showErrors(messages) {
+    errorsBox.innerHTML = '<strong>Please fix these values:</strong><ul>' + messages.map(m => '<li>' + m + '</li>').join('') + '</ul>';
+    errorsBox.dataset.open = 'true';
+    errorsBox.focus();
+  }
+  const clearErrors = () => { errorsBox.dataset.open = 'false'; errorsBox.innerHTML = ''; };
+
+  function validate(v) {
+    const problems = [];
+    if (!v.name.trim()) problems.push('name must not be empty');
+    if (!Number.isInteger(v.age) || v.age < 1 || v.age > 130) problems.push('age must be a whole number between 1 and 130');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v.birthday) || Number.isNaN(Date.parse(v.birthday))) problems.push('birthday must be a real date in YYYY-MM-DD format');
+    if (!v.course.trim()) problems.push('course must not be empty');
+    return problems;
+  }
+
+  function openForm(card) {
+    editingCard = card || null;
+    clearErrors();
+    document.getElementById('form-title').textContent = card ? 'Edit student' : 'Add student';
+    document.getElementById('f-name').value = card ? card.querySelector('h2').textContent : '';
+    document.getElementById('f-age').value = card ? card.dataset.age : '';
+    document.getElementById('f-birthday').value = card ? card.querySelectorAll('.facts dd')[1].textContent.trim() : '';
+    document.getElementById('f-course').value = card ? card.dataset.course : '';
+    formDialog.showModal();
+  }
+
+  document.getElementById('form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const values = {
+      name: document.getElementById('f-name').value,
+      age: Number(document.getElementById('f-age').value),
+      birthday: document.getElementById('f-birthday').value,
+      course: document.getElementById('f-course').value,
+    };
+    const problems = validate(values);
+    if (problems.length) { showErrors(problems); return; }
+
+    if (editingCard) {
+      const keptId = editingCard.querySelector('.meta').textContent.match(/\d+/)[0];
+      editingCard.querySelector('h2').textContent = values.name.trim();
+      editingCard.querySelector('.initials').textContent = initialsOf(values.name);
+      editingCard.querySelector('.course-pill').textContent = values.course.trim();
+      editingCard.querySelector('.meta').childNodes[0].nodeValue = 'ID ' + keptId + ' · ';
+      const dds = editingCard.querySelectorAll('.facts dd');
+      dds[0].textContent = values.age;
+      dds[1].textContent = values.birthday;
+      editingCard.dataset.age = values.age;
+      editingCard.dataset.course = values.course.trim();
+    } else {
+      const card = document.createElement('article');
+      card.className = 'student';
+      card.tabIndex = 0;
+      card.dataset.age = values.age;
+      card.dataset.course = values.course.trim();
+      card.innerHTML =
+        '<div class="head"><span class="initials" aria-hidden="true"></span>' +
+        '<div><h2></h2><div class="meta">ID ' + (grid.querySelectorAll('.student').length + 1) + ' · <span class="course-pill"></span></div></div></div>' +
+        '<dl class="facts"><div><dt>Age</dt><dd></dd></div><div><dt>Birthday</dt><dd></dd></div></dl>' +
+        '<div class="actions"><button class="btn btn-tonal" data-action="edit">Edit</button>' +
+        '<button class="btn btn-text danger" data-action="delete">Delete</button></div>';
+      card.querySelector('.initials').textContent = initialsOf(values.name);
+      card.querySelector('h2').textContent = values.name.trim();
+      card.querySelector('.course-pill').textContent = values.course.trim();
+      const dds = card.querySelectorAll('.facts dd');
+      dds[0].textContent = values.age;
+      dds[1].textContent = values.birthday;
+      grid.appendChild(card);
+    }
+    formDialog.close();
+    clearErrors();
+    applyFilters();
+  });
+  document.getElementById('form-cancel').addEventListener('click', () => { clearErrors(); formDialog.close(); });
+  document.getElementById('add').addEventListener('click', () => openForm(null));
+
+  grid.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+    const card = button.closest('.student');
+    if (button.dataset.action === 'edit') { openForm(card); return; }
+    pendingCard = card;
+    document.getElementById('confirm-text').textContent =
+      'Delete ' + card.querySelector('h2').textContent.trim() + ' from the students table. This cannot be undone.';
+    confirmDialog.showModal();
+  });
+  document.getElementById('confirm-cancel').addEventListener('click', () => { pendingCard = null; confirmDialog.close(); });
+  document.getElementById('confirm-ok').addEventListener('click', () => {
+    if (pendingCard) pendingCard.remove();
+    pendingCard = null;
+    confirmDialog.close();
+    applyFilters();
+  });
+
+  applyFilters();
+</script>
+</body>
+</html>

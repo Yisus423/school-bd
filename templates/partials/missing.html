@@ -1,0 +1,10 @@
+{# Shown when a route targets a student id that does not exist. #}
+<dialog id="student-missing" aria-labelledby="student-missing-title">
+  <h5 id="student-missing-title">Student not found</h5>
+  <p>
+    There is no student with ID {{ dialog.student_id }}. It may have been deleted in another tab.
+  </p>
+  <nav>
+    <button type="button" class="transparent" data-close data-autofocus>Close</button>
+  </nav>
+</dialog>

@@ -1,0 +1,6 @@
+<!-- Explicit width and height so the palette sampler gets a 48x48 raster instead of
+     the 300x150 default box of an SVG that only carries a viewBox. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-label="School logo">
+  <rect width="48" height="48" rx="12" fill="#0b57d0"/>
+  <path fill="#ffffff" d="M24 12 8 20l16 8 12-6v9h3v-11L24 12Zm-11 13.6V32l11 4.5 11-4.5v-6.4l-11 5.5-11-5.5Z"/>
+</svg>

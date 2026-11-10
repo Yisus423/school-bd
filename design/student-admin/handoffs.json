@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "chosen": "01-dense-table.html",
+  "handoffs": {
+    "01-dense-table.html": {
+      "status": "implemented",
+      "queued": false,
+      "sentAt": "2026-11-02T23:20:50.436Z",
+      "startedAt": "2026-11-03T00:48:51.313Z",
+      "implementedAt": "2026-11-03T10:39:53.576Z",
+      "feature": "odd/tasks/web-student-crud.md",
+      "note": "Dense-table direction implemented in FastAPI + BeerCSS + HTMX: list with server-side search/course filter, create/edit/delete dialogs, both canvas comments applied (configurable school name, logo and Material You palette from school.toml). 70 tests pass; branch feat/web-student-crud.",
+      "previewUrl": "http://127.0.0.1:8000/students"
+    }
+  }
+}
