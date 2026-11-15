@@ -1,13 +1,15 @@
-"""SQLite persistence for students using SQLModel sessions."""
+"""SQLite persistence for students and accounts using SQLModel sessions."""
 
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
 from sqlalchemy.engine import URL
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from models import Student, StudentUpdate
+from auth import hash_password, verify_password
+from models import Role, Student, StudentUpdate, User, normalize_username
 
 
 DB_PATH = Path(__file__).resolve().parent / "db.sqlite3"
@@ -86,4 +88,98 @@ def delete_student(student_id: int) -> bool:
         if student is None:
             return False
         session.delete(student)
+    return True
+
+
+def _find_user(session: Session, username: str) -> User | None:
+    """Find one account by its normalized username."""
+    try:
+        normalized = normalize_username(username)
+    except ValueError:
+        return None
+    return session.exec(select(User).where(User.username == normalized)).first()
+
+
+_absent_user_hash: str | None = None
+
+
+def _verify_against_absent_user(password: str) -> None:
+    """Spend the same work on an unknown username as on a wrong password.
+
+    Without this, a missing account would answer faster than an existing one and the
+    response time itself would tell a caller which usernames exist.
+    """
+    global _absent_user_hash
+    if _absent_user_hash is None:
+        _absent_user_hash = hash_password("a password no account owns")
+    verify_password(password, _absent_user_hash)
+
+
+def add_user(
+    username: str,
+    password: str,
+    role: Role | str,
+    student_id: int | None = None,
+) -> User:
+    """Hash the password, validate the account and persist it."""
+    user = User.model_validate(
+        {
+            "username": username,
+            "password_hash": hash_password(password),
+            "role": role,
+            "student_id": student_id,
+        }
+    )
+    try:
+        with session_scope() as session:
+            session.add(user)
+            session.flush()
+            session.refresh(user)
+    except IntegrityError as error:
+        raise ValueError(f"username '{user.username}' is already taken") from error
+    return user
+
+
+def get_user_by_username(username: str) -> User | None:
+    """Return one account by username, if it exists."""
+    with session_scope() as session:
+        return _find_user(session, username)
+
+
+def list_users() -> list[User]:
+    """Return every account ordered by its identifier."""
+    with session_scope() as session:
+        return list(session.exec(select(User).order_by(User.id)).all())
+
+
+def authenticate(username: str, password: str) -> User | None:
+    """Return the account when the password matches it, and nothing otherwise."""
+    user = get_user_by_username(username)
+    if user is None:
+        _verify_against_absent_user(password)
+        return None
+    if not verify_password(password, user.password_hash):
+        return None
+    return user
+
+
+def set_user_password(username: str, password: str) -> bool:
+    """Replace one account's password and report whether it existed."""
+    new_hash = hash_password(password)
+    with session_scope() as session:
+        user = _find_user(session, username)
+        if user is None:
+            return False
+        user.password_hash = new_hash
+        session.add(user)
+    return True
+
+
+def delete_user(username: str) -> bool:
+    """Delete one account and report whether it existed."""
+    with session_scope() as session:
+        user = _find_user(session, username)
+        if user is None:
+            return False
+        session.delete(user)
     return True
