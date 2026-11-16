@@ -1,9 +1,11 @@
-"""Password hashing on the Python standard library.
+"""Passwords and session tokens on the Python standard library.
 
 The project stores no plaintext password and adds no hashing dependency: a password
 becomes a self-describing ``scrypt`` string that carries its own parameters, so a
 future change of cost can be told apart from an old hash. Verification is constant
-time, and a malformed or hostile stored value is rejected instead of crashing.
+time, and a malformed or hostile stored value is rejected instead of crashing. A
+session token is only ever stored as its digest, so a leaked table holds no live
+session.
 """
 
 import base64
@@ -19,6 +21,7 @@ SCRYPT_DKLEN = 32
 SCRYPT_MAXMEM = 64 * 1024 * 1024
 SALT_BYTES = 16
 MIN_PASSWORD_LENGTH = 8
+SESSION_TOKEN_BYTES = 32
 
 _HASH_SCHEME = "scrypt"
 _FIELDS = 6
@@ -63,6 +66,16 @@ def hash_password(password: str) -> str:
             _encode(digest),
         )
     )
+
+
+def new_session_token() -> str:
+    """Return a fresh unguessable token for one session cookie."""
+    return secrets.token_urlsafe(SESSION_TOKEN_BYTES)
+
+
+def hash_session_token(token: str) -> str:
+    """Return the digest this project stores in place of a session token."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def _parse(stored: str) -> tuple[int, int, int, bytes, bytes] | None:

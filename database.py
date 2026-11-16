@@ -1,15 +1,26 @@
-"""SQLite persistence for students and accounts using SQLModel sessions."""
+"""SQLite persistence for students, accounts and sessions."""
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from auth import hash_password, verify_password
-from models import Role, Student, StudentUpdate, User, normalize_username
+from auth import hash_password, hash_session_token, new_session_token, verify_password
+from models import (
+    LoginSession,
+    Role,
+    Student,
+    StudentUpdate,
+    User,
+    normalize_username,
+)
+
+
+SESSION_TTL = timedelta(hours=8)
 
 
 DB_PATH = Path(__file__).resolve().parent / "db.sqlite3"
@@ -183,3 +194,74 @@ def delete_user(username: str) -> bool:
             return False
         session.delete(user)
     return True
+
+
+def _utc_now() -> datetime:
+    """Aware UTC: the session deadline column rejects a datetime without a zone."""
+    return datetime.now(timezone.utc)
+
+
+def _find_session(session: Session, token: str) -> LoginSession | None:
+    """Find one session by the digest of its cookie token."""
+    digest = hash_session_token(token)
+    return session.exec(
+        select(LoginSession).where(LoginSession.token_hash == digest)
+    ).first()
+
+
+def create_session(user_id: int, ttl: timedelta = SESSION_TTL) -> str:
+    """Open a session for one account and return the token its cookie carries."""
+    token = new_session_token()
+    login = LoginSession.model_validate(
+        {
+            "token_hash": hash_session_token(token),
+            "user_id": user_id,
+            "expires_at": _utc_now() + ttl,
+        }
+    )
+    with session_scope() as session:
+        session.add(login)
+    return token
+
+
+def session_user(token: str) -> User | None:
+    """Return the account a live session belongs to, and nothing otherwise.
+
+    An expired session is deleted on the spot, and a session whose account is gone
+    resolves to nothing, so a removed account cannot keep using an open browser.
+    """
+    if not token:
+        return None
+    with session_scope() as session:
+        login = _find_session(session, token)
+        if login is None:
+            return None
+        if login.expires_at <= _utc_now():
+            session.delete(login)
+            return None
+        return session.get(User, login.user_id)
+
+
+def delete_session(token: str) -> bool:
+    """Close one session and report whether it was still open."""
+    if not token:
+        return False
+    with session_scope() as session:
+        login = _find_session(session, token)
+        if login is None:
+            return False
+        session.delete(login)
+    return True
+
+
+def purge_expired_sessions() -> int:
+    """Delete every session past its deadline and report how many were removed."""
+    with session_scope() as session:
+        expired = list(
+            session.exec(
+                select(LoginSession).where(LoginSession.expires_at <= _utc_now())
+            ).all()
+        )
+        for login in expired:
+            session.delete(login)
+    return len(expired)

@@ -1,7 +1,7 @@
 """SQLModel tables and Pydantic validation schemas for students and accounts."""
 
 import re
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated
 
@@ -99,6 +99,24 @@ class User(SQLModel, table=True):
                 "only a student account can be linked to a student record"
             )
         return self
+
+
+class LoginSession(SQLModel, table=True):
+    """One signed-in browser: the digest of its cookie token and its deadline.
+
+    The token itself is never stored, so a copy of the database does not hand out
+    live sessions. ``expires_at`` is an aware UTC datetime, which SQLModel stores
+    as plain UTC in SQLite and hands back with the zone attached.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    __tablename__ = "sessions"
+
+    id: int | None = Field(default=None, primary_key=True)
+    token_hash: str = Field(unique=True, index=True)
+    user_id: int = Field(foreign_key="users.id")
+    expires_at: datetime
 
 
 class StudentUpdate(SQLModel):
