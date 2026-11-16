@@ -20,6 +20,10 @@
            alt="{{ settings.name }} logo" width="40" height="40">
       <h5 class="max">{{ settings.name }}</h5>
       <span class="chip">Students</span>
+      <span class="chip">{{ account.username }}</span>
+      <form method="post" action="/logout">
+        <button class="transparent" type="submit">Sign out</button>
+      </form>
     </nav>
   </header>
 

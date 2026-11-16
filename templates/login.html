@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · {{ settings.name }}</title>
+  {# Root-relative asset paths: they survive proxies and keep the page offline. #}
+  <link rel="stylesheet" href="/static/vendor/beer.min.css">
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="icon" href="/static/{{ settings.logo }}">
+</head>
+<body data-theme-source="{{ settings.theme_source }}" data-theme-fallback="{{ settings.color }}">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header>
+    <nav>
+      <img class="circle" src="/static/{{ settings.logo }}"
+           alt="{{ settings.name }} logo" width="40" height="40">
+      <h5 class="max">{{ settings.name }}</h5>
+    </nav>
+  </header>
+
+  <main id="main" class="responsive max">
+    <article class="border round">
+      <h5>Sign in</h5>
+      {% if failed %}
+      {# One message for both halves: the page never says which one was wrong. #}
+      <p id="sign-in-error" role="alert">
+        The username or the password is not correct.
+      </p>
+      {% endif %}
+      <form method="post" action="/login">
+        <input type="hidden" name="next" value="{{ next }}">
+        <div class="field label border round">
+          <input id="username" name="username" value="{{ username }}" autocomplete="username"
+                 required{% if failed %} aria-describedby="sign-in-error"{% endif %}>
+          <label for="username">Username</label>
+        </div>
+        <div class="field label border round">
+          <input id="password" name="password" type="password" autocomplete="current-password"
+                 required{% if failed %} aria-describedby="sign-in-error"{% endif %}>
+          <label for="password">Password</label>
+        </div>
+        <nav>
+          <button type="submit">Sign in</button>
+        </nav>
+      </form>
+    </article>
+  </main>
+
+  <footer>
+    <nav>{{ settings.name }}</nav>
+  </footer>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

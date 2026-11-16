@@ -46,22 +46,24 @@ S6. Known limitation, stated rather than hidden: the login and logout forms carr
 - T2 (S2, S3) — Account CLI: `users add`, `users list`, `users passwd`, `users
   remove`, with prompts for the password and readable errors. Route: inline.
   Status: done, in W1b.
-- T3 (S1, S5) — Server-side sessions: `Session` table holding a hash of the cookie
-  token plus its expiry, and the helpers that issue, resolve and revoke them.
-  Route: inline. Status: pending.
+- T3 (S1, S5) — Server-side sessions: `LoginSession` table holding a hash of the
+  cookie token plus its expiry, and the helpers that issue, resolve and revoke them.
+  Route: inline. Status: done, in W2.
 - T4 (S1, S4, S5) — Web entry and guards: `GET/POST /login`, `POST /logout`, the
   role guard applied to the existing student routes, and `GET /me` for a student.
-  Route: inline. Status: pending.
+  Route: inline. Status: done, in W2.
 - T5 (S1, S4, S5) — Pages: login form, the student's own record, and a top bar that
-  shows who is signed in with a way out. Route: inline. Status: pending.
+  shows who is signed in with a way out. Route: inline. Status: done, in W2.
 - T6 (S1–S5) — Tests: one for every rule this phase introduces, one for the student
   behavior the guards touch, and one differential check against the base commit for
   the commands and routes this phase did not name. Route: inline. Status: in
   progress: the account half (`tests/test_auth.py`, the account cases in
   `tests/test_cli.py`) and the differential run for the student commands landed in
-  W1a/W1b and reported byte-identical output; the web half is still pending.
+  W1a/W1b and reported byte-identical output; the web half landed in W2 (15 rules
+  first seen red, then green) with the student-page differential run against the base
+  commit.
 - T7 (S2, S4) — Documentation: README section for accounts and roles, plus the CLI
-  help text that describes what a user can do. Route: inline. Status: pending.
+  help text that describes what a user can do. Route: inline. Status: done, in W3.
 - T8 (S1–S6) — Independent verification of the security surface (Risk item 2) and
   close. Route: `gentle-ai-verify`. Status: pending.
 
@@ -103,6 +105,19 @@ language already shipped in `templates/students.html` (BeerCSS plus `static/app.
 the same top bar), because S1 asks for a working login and the project's chosen
 direction is already implemented. No new artboards or `design/system.md` sync are
 produced for it; the canvas pass stays available on request.
+
+L7 (2026-11-15, parent, decision): a `LoginSession.expires_at` column is an aware UTC
+`datetime`, never a naive one: SQLModel maps `datetime` to its `UTCDateTime`, which
+raises on a value without a time zone. Two other measurements shaped the tests:
+`hashlib.scrypt` at the pinned cost takes about 300 ms on this machine, so the web
+fixtures create only the account each test signs in with instead of one per role in
+every test; and the whole suite still took 102 tests in 16 s before this phase, so the
+suite runtime is reported rather than hidden.
+
+L8 (2026-11-15, parent, decision): the parent context reached its backstop while the
+web half was in flight, so the remaining bounded unit — one missing admin test, the
+full suite, and the differential run for the student pages — was delegated to a
+worker with the file list it may touch, and reported back as evidence.
 
 L6 (2026-11-15, parent, decision): the account work measured 741 authored lines as
 one slice, past the review-size target, so it is delivered as two: persistence and

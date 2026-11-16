@@ -14,8 +14,11 @@ Response contract
   page that renders the dialog with errors on ``422``, so the app still works
   without JavaScript.
 * A missing student answers ``404`` with a dialog fragment for HTMX requests.
+* A page that needs an account answers ``303`` to ``/login`` when the request has no
+  session at all, and ``403`` when the role that signed in may not open it.
 """
 
+import os
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Annotated
@@ -27,7 +30,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 
 import database as db
-from models import Student
+from models import Role, Student, User
 from settings import SchoolSettings, get_school_settings
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -42,6 +45,157 @@ Settings = Annotated[SchoolSettings, Depends(get_school_settings)]
 
 
 SQLITE_INTEGER_MAX = 2**63 - 1
+
+SESSION_COOKIE = "school_session"
+SESSION_MAX_AGE = int(db.SESSION_TTL.total_seconds())
+STAFF_ROLES = (Role.teacher, Role.admin)
+STAFF_HOME = "/students"
+STUDENT_HOME = "/me"
+LOGIN_PATH = "/login"
+# The cookie is not marked Secure by default, because the local development server
+# speaks plain HTTP and a Secure cookie would never come back. Set
+# SCHOOL_SECURE_COOKIES=1 wherever the app is served over HTTPS.
+SECURE_COOKIES = os.environ.get("SCHOOL_SECURE_COOKIES", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+
+
+class SignInRequired(Exception):
+    """Raised when a page needs a session and the request carries none."""
+
+    def __init__(self, wanted: str) -> None:
+        super().__init__(wanted)
+        self.wanted = wanted
+
+
+class AccessDenied(Exception):
+    """Raised when the signed-in account may not open the page it asked for."""
+
+    def __init__(self, account: User) -> None:
+        super().__init__(account.username)
+        self.account = account
+
+
+def wanted_path(request: Request) -> str:
+    """Return where this request was going, to come back after signing in."""
+    query = request.url.query
+    return f"{request.url.path}?{query}" if query else request.url.path
+
+
+def local_path(value: str, fallback: str = "") -> str:
+    """Keep a redirect on this site, whatever a link or a form asked for."""
+    candidate = value.strip()
+    if candidate.startswith("/") and not candidate.startswith("//"):
+        return candidate
+    return fallback
+
+
+def home_for(account: User | None) -> str:
+    """Return the page an account belongs on."""
+    if account is None:
+        return LOGIN_PATH
+    return STAFF_HOME if account.role in STAFF_ROLES else STUDENT_HOME
+
+
+def account_of(request: Request) -> User | None:
+    """Return the account this request already resolved, if any."""
+    return getattr(request.state, "account", None)
+
+
+def current_account(request: Request) -> User | None:
+    """Resolve the session cookie, when there is one, into an account."""
+    token = request.cookies.get(SESSION_COOKIE, "")
+    account = db.session_user(token) if token else None
+    request.state.account = account
+    return account
+
+
+Account = Annotated[User | None, Depends(current_account)]
+
+
+def require_role(request: Request, account: Account, *roles: Role) -> User:
+    """Let the listed roles through, and answer the rest according to who they are."""
+    if account is None:
+        raise SignInRequired(wanted_path(request))
+    if account.role not in roles:
+        raise AccessDenied(account)
+    request.state.account = account
+    return account
+
+
+def require_staff(request: Request, account: Account) -> User:
+    """Guard for the student administration pages."""
+    return require_role(request, account, *STAFF_ROLES)
+
+
+def require_student(request: Request, account: Account) -> User:
+    """Guard for the page that shows one student their own record."""
+    return require_role(request, account, Role.student)
+
+
+STAFF_ONLY = [Depends(require_staff)]
+StudentAccount = Annotated[User, Depends(require_student)]
+
+
+@app.exception_handler(SignInRequired)
+def answer_sign_in_required(request: Request, error: SignInRequired) -> RedirectResponse:
+    """Send the visitor to the login page, remembering where they were going."""
+    return RedirectResponse(
+        f"{LOGIN_PATH}?next={local_path(error.wanted, LOGIN_PATH)}", status_code=303
+    )
+
+
+@app.exception_handler(AccessDenied)
+def answer_access_denied(request: Request, error: AccessDenied) -> HTMLResponse:
+    """Explain the refusal without describing what the other pages contain."""
+    return templates.TemplateResponse(
+        request,
+        "forbidden.html",
+        {
+            "settings": get_school_settings(),
+            "account": error.account,
+            "home": home_for(error.account),
+        },
+        status_code=403,
+    )
+
+
+def session_cookie(response: Response, token: str) -> None:
+    """Attach the session cookie with the flags this deployment can hold."""
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=SESSION_MAX_AGE,
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=SECURE_COOKIES,
+    )
+
+
+def login_response(
+    request: Request,
+    settings: SchoolSettings,
+    next_path: str,
+    username: str = "",
+    failed: bool = False,
+    status_code: int = 200,
+) -> HTMLResponse:
+    """Render the login page, with the typed username and the error when needed."""
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {
+            "settings": settings,
+            "next": next_path,
+            "username": username,
+            "failed": failed,
+        },
+        status_code=status_code,
+    )
 
 
 def is_htmx(request: Request) -> bool:
@@ -122,6 +276,7 @@ def page_response(
 ) -> HTMLResponse:
     """Render the full students page, optionally with an already open dialog."""
     every_student = db.get_students()
+    account = account_of(request)
     return templates.TemplateResponse(
         request,
         "students.html",
@@ -131,6 +286,8 @@ def page_response(
             "q": query,
             "course_filter": course,
             "dialog": dialog,
+            "account": account,
+            "home": home_for(account),
         },
         status_code=status_code,
     )
@@ -247,12 +404,55 @@ def missing_student_response(
 
 
 @app.get("/")
-def index() -> RedirectResponse:
-    """Send the browser to the students list."""
-    return RedirectResponse("/students", status_code=303)
+def index(account: Account) -> RedirectResponse:
+    """Send the browser to the page that fits the visitor."""
+    return RedirectResponse(home_for(account), status_code=303)
 
 
-@app.get("/students", response_class=HTMLResponse)
+@app.get("/login", response_class=HTMLResponse)
+def login_page(
+    request: Request,
+    settings: Settings,
+    account: Account,
+    next: str = "",
+) -> Response:
+    """Ask for a username and a password, unless this browser already signed in."""
+    if account is not None:
+        return RedirectResponse(home_for(account), status_code=303)
+    return login_response(request, settings, local_path(next))
+
+
+@app.post("/login", response_class=HTMLResponse)
+def sign_in(
+    request: Request,
+    settings: Settings,
+    username: Annotated[str, Form()] = "",
+    password: Annotated[str, Form()] = "",
+    next: Annotated[str, Form()] = "",
+) -> Response:
+    """Open a session for a matching account, or ask again without saying why."""
+    account = db.authenticate(username, password)
+    target = local_path(next)
+    if account is None:
+        return login_response(
+            request, settings, target, username=username, failed=True, status_code=401
+        )
+    db.purge_expired_sessions()
+    response = RedirectResponse(target or home_for(account), status_code=303)
+    session_cookie(response, db.create_session(account.id))
+    return response
+
+
+@app.post("/logout")
+def sign_out(request: Request) -> RedirectResponse:
+    """Close the session behind this browser and forget its cookie."""
+    db.delete_session(request.cookies.get(SESSION_COOKIE, ""))
+    response = RedirectResponse(LOGIN_PATH, status_code=303)
+    response.delete_cookie(SESSION_COOKIE, path="/")
+    return response
+
+
+@app.get("/students", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def students_page(
     request: Request,
     settings: Settings,
@@ -263,7 +463,7 @@ def students_page(
     return page_response(request, settings, q, course_filter)
 
 
-@app.get("/students/rows", response_class=HTMLResponse)
+@app.get("/students/rows", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def student_rows(request: Request, q: str = "", course_filter: str = "") -> HTMLResponse:
     """Table body fragment used by the search and course filters."""
     return rows_response(
@@ -271,7 +471,7 @@ def student_rows(request: Request, q: str = "", course_filter: str = "") -> HTML
     )
 
 
-@app.get("/students/new", response_class=HTMLResponse)
+@app.get("/students/new", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def new_student_dialog(
     request: Request,
     settings: Settings,
@@ -292,7 +492,7 @@ def new_student_dialog(
     return page_response(request, settings, q, course_filter, dialog=dialog)
 
 
-@app.get("/students/{student_id}/edit", response_class=HTMLResponse)
+@app.get("/students/{student_id}/edit", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def edit_student_dialog(
     request: Request,
     student_id: int,
@@ -326,7 +526,7 @@ def edit_student_dialog(
     return page_response(request, settings, q, course_filter, dialog=dialog)
 
 
-@app.get("/students/{student_id}/delete", response_class=HTMLResponse)
+@app.get("/students/{student_id}/delete", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def delete_student_dialog(
     request: Request,
     student_id: int,
@@ -352,7 +552,7 @@ def delete_student_dialog(
     return page_response(request, settings, q, course_filter, dialog=dialog)
 
 
-@app.post("/students", response_class=HTMLResponse)
+@app.post("/students", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def create_student(
     request: Request,
     settings: Settings,
@@ -374,7 +574,7 @@ def create_student(
     return write_response(request, settings, q, course_filter)
 
 
-@app.post("/students/{student_id}", response_class=HTMLResponse)
+@app.post("/students/{student_id}", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def update_student(
     request: Request,
     student_id: int,
@@ -403,7 +603,7 @@ def update_student(
     return write_response(request, settings, q, course_filter)
 
 
-@app.post("/students/{student_id}/delete", response_class=HTMLResponse)
+@app.post("/students/{student_id}/delete", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def remove_student(
     request: Request,
     student_id: int,
@@ -417,6 +617,27 @@ def remove_student(
     if not db.delete_student(student_id):
         return missing_student_response(request, settings, student_id, q, course_filter)
     return write_response(request, settings, q, course_filter)
+
+
+@app.get("/me", response_class=HTMLResponse)
+def my_record(
+    request: Request,
+    settings: Settings,
+    account: StudentAccount,
+) -> HTMLResponse:
+    """Show one student their own record, and nothing else."""
+    student = db.get_student(account.student_id) if account.student_id else None
+    return templates.TemplateResponse(
+        request,
+        "me.html",
+        {
+            "settings": settings,
+            "account": account,
+            "student": student,
+            "home": home_for(account),
+        },
+        status_code=200 if student is not None else 404,
+    )
 
 
 if __name__ == "__main__":
