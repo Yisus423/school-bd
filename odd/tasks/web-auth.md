@@ -75,9 +75,13 @@ Work units (commits on `feat/web-auth`, about 400 authored lines each):
   in `tests/test_cli.py`). W1a and W1b were originally one slice: it measured 741
   authored lines, so the delivery strategy split it at the layer boundary before
   the next commit (see L6).
-- W2 — `feat(web): require a session login and guard the student routes by role`
-  (T3, T4, T5, their tests). Split the same way if it passes the slice size.
+- W2 — split at the same layer boundary as W1: W2a keeps the sessions
+  (`feat(auth)`, T3) and W2b brings the sign-in, the guards and the pages
+  (`feat(web)`, T4, T5, their tests). W2b stays over the slice target; L9 records
+  why it was not split again.
 - W3 — `docs(auth): document accounts, roles and sessions` (T7), then T8.
+
+Commit hashes for every slice are in L9.
 
 ## Log
 
@@ -113,6 +117,16 @@ raises on a value without a time zone. Two other measurements shaped the tests:
 fixtures create only the account each test signs in with instead of one per role in
 every test; and the whole suite still took 102 tests in 16 s before this phase, so the
 suite runtime is reported rather than hidden.
+
+L9 (2026-11-15, parent, decision): delivered as four slices. W1a `87f496f`,
+W1b `e842b80`, W2a `0d9a277`, W2b `36adf2c`, and W3 carries this document update.
+W2b measures about 950 authored lines, past the review-size target, and was not
+split again: its two candidate halves (sign-in, then authorization) share the same
+`web.py` region and the same test fixtures, the guard tests need the sign-in
+fixtures, and the intermediate commit would leave the application half-guarded,
+which is worse for a reviewer than one longer slice of one behavior. The tests
+travel with the behavior they describe, so no slice claims verified behavior it
+does not contain.
 
 L8 (2026-11-15, parent, decision): the parent context reached its backstop while the
 web half was in flight, so the remaining bounded unit — one missing admin test, the
