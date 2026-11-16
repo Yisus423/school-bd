@@ -118,6 +118,24 @@ fixtures create only the account each test signs in with instead of one per role
 every test; and the whole suite still took 102 tests in 16 s before this phase, so the
 suite runtime is reported rather than hidden.
 
+L10 (2026-11-15, user, verbatim): "dale funciona, pero va increiblemente lento,
+profilealo." The user also provided `obscura`, a lightweight headless browser, which
+is what produced the measurements below.
+
+L11 (2026-11-15, parent, decision — a separate unit on this branch, not a login
+task): profiling the running app found the real cost, and it was not the login. A
+whole page load issued 49 requests, 41 of them `404`: the vendored `beer.min.css`
+references 45 files this project does not ship (37 `.shape.*` mask SVGs and four
+Material Symbols `@font-face` sources), and a browser fetches them whether or not
+any element matches. An empty page that only linked the stylesheet needed 2.1 s and
+43 requests to settle; after trimming exactly those references it needs 0.5 s and 2
+requests, and `GET /login` went from 49 requests to 8 with no 404 left. Server time
+was never the problem: 7-8 ms per page over real HTTP. The remaining client-side
+cost is the 205 KB of uncompressed assets, which does not matter on loopback and is
+left alone; `GET /login` also spends about 250 ms in `scrypt`, which is the pinned
+work factor and a decision, not a defect. Recorded in `static/vendor/README.md` with
+the recipe, so a future upgrade of BeerCSS can repeat the trim.
+
 L9 (2026-11-15, parent, decision): delivered as four slices. W1a `87f496f`,
 W1b `e842b80`, W2a `0d9a277`, W2b `36adf2c`, and W3 carries this document update.
 W2b measures about 950 authored lines, past the review-size target, and was not

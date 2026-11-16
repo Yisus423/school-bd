@@ -1,5 +1,7 @@
 """HTTP-level tests for the FastAPI student CRUD interface and its sign-in."""
 
+import pathlib
+import re
 from datetime import date, timedelta
 
 import pytest
@@ -547,6 +549,24 @@ def test_plain_request_for_an_id_outside_sqlite_range_redirects(teacher_client, 
 
     assert response.status_code == 303
     assert response.headers["location"] == "/students"
+
+
+def test_vendored_stylesheets_reference_only_files_that_exist() -> None:
+    """A browser fetches every url() a stylesheet declares, matched or not.
+
+    BeerCSS shipped 45 references to shape masks and icon fonts that this project
+    does not vendor, which cost 41 `404` requests on every page load.
+    """
+    vendor = pathlib.Path(web.BASE_DIR) / "static" / "vendor"
+    missing = []
+    for stylesheet in sorted(vendor.glob("*.css")):
+        for reference in re.findall(r"url\(\s*([^)'\"]+?)\s*\)", stylesheet.read_text()):
+            if reference.startswith("data:"):
+                continue
+            if not (stylesheet.parent / reference).exists():
+                missing.append(f"{stylesheet.name}: {reference}")
+
+    assert missing == []
 
 
 def test_the_login_page_asks_for_a_username_and_a_password(
