@@ -1,0 +1,97 @@
+# role-panels — One panel per role, accounts from the web, admin branding
+
+Phase 4 of school-bd, built on the login phase (`feat/web-auth`, unmerged). The login
+stays as it is; this phase gives each role its own place and moves two management jobs
+into the web: creating accounts and changing the school branding.
+
+Specification for the design and implementation tasks below. Read until `## Log`.
+
+## Specs
+
+S1. One panel per role — user decision (2026-11-16, question "¿Qué ve cada rol cuando
+    entra?"): **"Admin cuentas; docente alumnos"**. Verbatim option text: "Docente: el
+    CRUD de alumnos. Admin: gestión de cuentas. Alumno: su ficha."
+
+S2. Account management from the page — user decision (2026-11-16, question "¿Qué se
+    puede hacer con una cuenta desde la página?"): **"Crear y resetear"**. Verbatim
+    option text: "Alta y contraseña nueva; la baja sigue siendo por CLI."
+
+S3. Branding in the admin panel — user decision (2026-11-16, question "¿El panel para
+    cambiar logo y colores entra en esta fase?"): **"Sí, en el panel del admin"**.
+    Verbatim option text: "El admin cambia logo y color desde la web y se rehace la
+    paleta."
+
+S4. Design gate — user decision (2026-11-16, question "¿Pasamos por el canvas de
+    diseño antes de implementar los paneles?"): **"Sí, artboards primero"**. Verbatim
+    option text: "Como la fase 2: direcciones visuales, elegís una, y recién ahí toco
+    código." No implementation task starts before one artboard is chosen.
+
+S5. Origin — user request (2026-11-16, verbatim): "debríamos hacer que cada usuario
+    tenga un panel distinto y que se puedan crear cuentas desde la pagina". Context of
+    the request (verbatim): "el logo si se pinta, capaz es eso una señal de que la
+    pagina si esta cargando rapido pero no se esta mostrando rapido."
+
+S6. Preserved behavior (unchanged by this phase): the login phase as shipped on
+    `feat/web-auth` — scrypt credentials, server-side sessions, `/login`, `/logout`,
+    `GET /me`, and the guards on the student routes; the student CRUD behavior and its
+    HTTP contract; the CLI surface, including `users remove`, which stays the only way
+    to delete an account (S2); `school.toml` and the `SCHOOL_*` environment variables
+    keep working as the base of the branding configuration; the visible-copy rule
+    (pages never name files, tools, layers or storage); and `Role.admin` now gains its
+    real power, which L4 of `web-auth.md` had explicitly deferred.
+
+S7. Boundaries between roles: a teacher gets `403` on the accounts and branding
+    surfaces, exactly as a student does today on `/students`; a student sees no link
+    to either; an admin keeps full access to the student CRUD. No role sees another
+    role's data.
+
+## Tasks
+
+- T1 (S1–S5, S4 first) — Design directions: sync the project design system
+  (`design/system.md`, `design/system.html` — it does not exist yet and the canvas
+  requires it), then three artboards under `design/role-panels/` showing the three
+  role experiences, plus `design.json`. Route: worker. Status: in progress.
+- T2 (S1, S2, S7) — Admin accounts panel: list accounts, create one (role, username,
+  password, student link), reset a password. Route: pending, after T1.
+- T3 (S1, S3, S7) — Admin branding panel: change the logo and the seed color from the
+  page, with the palette re-deriving; persistence and its precedence over
+  `school.toml`/env are an implementation decision to record in `## Log` when made.
+  Route: pending, after T1.
+- T4 (S1, S7) — Role separation in the shell: the signed-in top bar becomes the
+  per-role navigation (admin: students, accounts, branding; teacher: students;
+  student: own record), and the guards follow. Route: pending, after T1.
+- T5 (S1–S7) — Tests: one RED test per new rule before its implementation, the
+  existing behavior each change touches pinned, and a differential check against the
+  parent branch for surfaces this phase does not name. Route: pending.
+- T6 (S1–S7) — Documentation: README sections for the panels, the accounts screen and
+  the branding screen. Route: pending.
+- T7 (S1–S7) — Independent verification of the new management surfaces (Risk items 1
+  and 2: settings persistence and account creation from the web), or the recorded
+  decision not to run it. Route: `gentle-ai-verify`. Status: pending, same open
+  question as the login phase's verification.
+
+## Log
+
+L1 (2026-11-16, user, verbatim): "el logo si se pinta, capaz es eso una señal de que
+la pagina si esta cargando rapido pero no se esta mostrando rapido. debríamos hacer
+que cada usuario tenga un panel distinto y que se puedan crear cuentas desde la
+pagina"
+
+L2 (2026-11-16, user answers, verbatim): "Admin cuentas; docente alumnos" ·
+"Crear y resetear" · "Sí, en el panel del admin" · "Sí, artboards primero".
+
+L3 (2026-11-16, parent, finding, closing L1's hypothesis): the paint hypothesis was
+checked against the running app before opening this phase. The server answers in
+7–8 ms, the render-blocking stylesheet arrives in ~19 ms, and a page now issues 8
+requests with no 404 left; the only thing that can delay a first paint on loopback is
+the browser's own parse-and-paint of ~85 KB of CSS, which no code change of this
+project can shave further without dropping BeerCSS. obscura does not expose paint
+timings, and it does not draw images in screenshots (the user confirmed the logo
+paints in a real browser), so the client-side side rests on those numbers plus the
+user's own observation. Nothing more to optimize in this phase.
+
+L4 (2026-11-16, parent, decision): this phase starts on a branch of its own,
+`feat/role-panels`, cut from `feat/web-auth` at `1be951e`, so each phase can be
+reviewed and merged separately. The login phase's independent verification (T8 of
+`web-auth.md`) stays un-run at the user's move-on; it is inherited as T7 here rather
+than silently closed.
