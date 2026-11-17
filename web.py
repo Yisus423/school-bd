@@ -41,6 +41,8 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 templates.env.globals["available_courses"] = lambda: available_courses(db.get_students())
 
 STUDENT_CHANGED = '{"student-changed": true}'
+DATA_CHANGED = '{"data-changed": true}'
+ACCOUNT_FIELDS = {"username", "role", "student_id", "password"}
 Settings = Annotated[SchoolSettings, Depends(get_school_settings)]
 
 
@@ -136,8 +138,15 @@ def require_student(request: Request, account: Account) -> User:
     return require_role(request, account, Role.student)
 
 
+def require_admin(request: Request, account: Account) -> User:
+    """Guard for the account and branding management pages."""
+    return require_role(request, account, Role.admin)
+
+
 STAFF_ONLY = [Depends(require_staff)]
+ADMIN_ONLY = [Depends(require_admin)]
 StudentAccount = Annotated[User, Depends(require_student)]
+AdminAccount = Annotated[User, Depends(require_admin)]
 
 
 @app.exception_handler(SignInRequired)
@@ -241,6 +250,19 @@ def field_errors(error: ValidationError) -> dict[str, str]:
         if field in {"name", "age", "birthday", "course"}:
             messages.setdefault(field, item["msg"].removeprefix("Value error, "))
     return messages
+
+
+def account_error_field(message: str) -> str:
+    """Route one account rejection to the form field it belongs to.
+
+    The validation rules themselves live in the account schema; this only decides
+    which field shows the message when the schema reports it for the whole model.
+    """
+    if "student record" in message:
+        return "student_id"
+    if "password" in message:
+        return "password"
+    return "username"
 
 
 def rows_response(
@@ -383,6 +405,109 @@ def invalid_form_response(
     return page_response(
         request, settings, query, course, dialog=dialog, status_code=422
     )
+
+
+def account_rows_response(request: Request, oob: bool) -> HTMLResponse:
+    """Render the accounts table body fragment, plus the out-of-band counter."""
+    return templates.TemplateResponse(
+        request,
+        "partials/account-rows.html",
+        {
+            "accounts": db.list_users(),
+            "student_names": {
+                student.id: f"{student.name} ({student.id})"
+                for student in db.get_students()
+            },
+            "oob": oob,
+        },
+    )
+
+
+def accounts_page_response(
+    request: Request,
+    settings: SchoolSettings,
+    signed_in: User,
+    dialog: dict | None = None,
+    status_code: int = 200,
+) -> HTMLResponse:
+    """Render the full accounts page, optionally with an already open dialog."""
+    return templates.TemplateResponse(
+        request,
+        "accounts.html",
+        {
+            "settings": settings,
+            "account": signed_in,
+            "accounts": db.list_users(),
+            "student_names": {
+                student.id: f"{student.name} ({student.id})"
+                for student in db.get_students()
+            },
+            "dialog": dialog,
+        },
+        status_code=status_code,
+    )
+
+
+def account_dialog(
+    values: dict[str, str],
+    errors: dict[str, str],
+    open_dialog: bool = False,
+) -> dict:
+    """Describe the add-account dialog so the page and HTMX can render it."""
+    # The key is `fields`, not `values`: Jinja would resolve `dialog.values` to
+    # the dict method instead of the mapping.
+    return {
+        "template": "partials/account-form.html",
+        "fields": values,
+        "errors": errors,
+        "students": db.get_students(),
+        "open_dialog": open_dialog,
+    }
+
+
+def account_password_dialog(
+    username: str,
+    errors: dict[str, str],
+    open_dialog: bool = False,
+) -> dict:
+    """Describe the set-a-new-password dialog for one account."""
+    return {
+        "template": "partials/account-password.html",
+        "username": username,
+        "errors": errors,
+        "open_dialog": open_dialog,
+    }
+
+
+def account_fragment_response(
+    request: Request,
+    dialog: dict,
+    status_code: int = 200,
+) -> HTMLResponse:
+    """Answer an HTMX account dialog, retargeted into the dialog host."""
+    response = dialog_response(request, dialog, status_code=status_code)
+    response.headers["HX-Retarget"] = "#dialog-host"
+    response.headers["HX-Reswap"] = "innerHTML"
+    return response
+
+
+def account_changed_response(request: Request) -> Response:
+    """Answer an account write: an accounts fragment with a trigger, or a redirect."""
+    if is_htmx(request):
+        response = account_rows_response(request, oob=True)
+        response.headers["HX-Trigger"] = DATA_CHANGED
+        return response
+    # Post/Redirect/Get, so a refresh never repeats the write.
+    return RedirectResponse("/accounts", status_code=303)
+
+
+def missing_account_response(request: Request) -> Response:
+    """Answer an account action that names an account which does not exist."""
+    if is_htmx(request):
+        return account_fragment_response(
+            request, {"template": "partials/account-missing.html"}, status_code=404
+        )
+    return RedirectResponse("/accounts", status_code=303)
 
 
 def missing_student_response(
@@ -626,6 +751,125 @@ def remove_student(
     if not db.delete_student(student_id):
         return missing_student_response(request, settings, student_id, q, course_filter)
     return write_response(request, settings, q, course_filter)
+
+
+@app.get("/accounts", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def accounts_page(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+) -> HTMLResponse:
+    """Full accounts page with the table rendered server-side."""
+    return accounts_page_response(request, settings, account)
+
+
+@app.get("/accounts/new", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def add_account_dialog(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+) -> Response:
+    """Empty add-account dialog: a fragment for HTMX, an open page otherwise."""
+    dialog = account_dialog(
+        {"username": "", "role": "student", "student_id": ""},
+        {},
+        open_dialog=not is_htmx(request),
+    )
+    if is_htmx(request):
+        return dialog_response(request, dialog)
+    return accounts_page_response(request, settings, account, dialog=dialog)
+
+
+@app.post("/accounts", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def create_account(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+    username: Annotated[str, Form()] = "",
+    role: Annotated[str, Form()] = "",
+    student_id: Annotated[str, Form()] = "",
+    password: Annotated[str, Form()] = "",
+    confirm: Annotated[str, Form()] = "",
+) -> Response:
+    """Validate and create one account."""
+    values = {"username": username, "role": role, "student_id": student_id}
+    errors: dict[str, str] = {}
+    if password != confirm:
+        errors["password"] = "The passwords do not match."
+    try:
+        student_key: int | None = int(student_id) if student_id else None
+    except ValueError:
+        errors["student_id"] = "Choose a student record from the list."
+        student_key = None
+    if not errors:
+        try:
+            db.add_user(username, password, role, student_key)
+        except ValidationError as error:
+            errors = {}
+            for item in error.errors():
+                message = item["msg"].removeprefix("Value error, ")
+                field = str(item["loc"][0]) if item["loc"] else ""
+                if field not in ACCOUNT_FIELDS:
+                    field = account_error_field(message)
+                errors.setdefault(field, message)
+        except ValueError as error:
+            errors = {account_error_field(str(error)): str(error)}
+    if errors:
+        dialog = account_dialog(values, errors, open_dialog=not is_htmx(request))
+        if is_htmx(request):
+            return account_fragment_response(request, dialog, status_code=422)
+        return accounts_page_response(
+            request, settings, account, dialog=dialog, status_code=422
+        )
+    return account_changed_response(request)
+
+
+@app.get("/accounts/{username}/password", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def reset_password_dialog(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+    username: str,
+) -> Response:
+    """Set-a-new-password dialog for one account."""
+    if db.get_user_by_username(username) is None:
+        return missing_account_response(request)
+    dialog = account_password_dialog(username, {}, open_dialog=not is_htmx(request))
+    if is_htmx(request):
+        return dialog_response(request, dialog)
+    return accounts_page_response(request, settings, account, dialog=dialog)
+
+
+@app.post("/accounts/{username}/password", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def set_account_password(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+    username: str,
+    password: Annotated[str, Form()] = "",
+    confirm: Annotated[str, Form()] = "",
+) -> Response:
+    """Validate and apply a new password for one account."""
+    if db.get_user_by_username(username) is None:
+        return missing_account_response(request)
+    errors: dict[str, str] = {}
+    if password != confirm:
+        errors["password"] = "The passwords do not match."
+    if not errors:
+        try:
+            updated = db.set_user_password(username, password)
+        except ValueError as error:
+            errors = {"password": str(error)}
+    if errors:
+        dialog = account_password_dialog(username, errors, open_dialog=not is_htmx(request))
+        if is_htmx(request):
+            return account_fragment_response(request, dialog, status_code=422)
+        return accounts_page_response(
+            request, settings, account, dialog=dialog, status_code=422
+        )
+    if not updated:
+        return missing_account_response(request)
+    return account_changed_response(request)
 
 
 @app.get("/me", response_class=HTMLResponse)

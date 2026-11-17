@@ -906,3 +906,225 @@ def test_a_student_never_sees_another_student_in_the_top_bar(
     assert "My record" in page.text
     assert 'href="/students"' not in page.text
     assert "Computer Science" not in page.text
+
+
+# --- The admin's accounts panel (odd/tasks/role-panels.md T2) ---
+
+
+@pytest.fixture
+def roster(seeded_database):
+    """One account per role, for the accounts table."""
+    teacher = database.add_user("teacher.one", PASSWORD, Role.teacher)
+    admin = database.add_user("admin.one", PASSWORD, Role.admin)
+    student = database.add_user("ada.lovelace", PASSWORD, Role.student, student_id=1)
+    return {"teacher": teacher, "admin": admin, "student": student}
+
+
+@pytest.fixture
+def accounts_client(roster):
+    """A client already signed in as the roster's administrator."""
+    with TestClient(web.app, follow_redirects=False) as test_client:
+        sign_in(test_client, "admin.one")
+        yield test_client
+
+
+@pytest.fixture
+def roster_teacher_client(roster):
+    """A client already signed in as the roster's teacher."""
+    with TestClient(web.app, follow_redirects=False) as test_client:
+        sign_in(test_client, "teacher.one")
+        yield test_client
+
+
+def stored_accounts() -> list[tuple[str, str, int | None]]:
+    """Return every persisted account field through the public database API."""
+    return [
+        (entry.username, entry.role.value, entry.student_id)
+        for entry in database.list_users()
+    ]
+
+
+def test_an_admin_lists_every_account(accounts_client) -> None:
+    response = accounts_client.get("/accounts")
+
+    assert response.status_code == 200
+    for username in ("teacher.one", "admin.one", "ada.lovelace"):
+        assert username in response.text
+    assert "teacher" in response.text
+    assert "student" in response.text
+    assert "admin" in response.text
+    assert "Ada Lovelace (1)" in response.text
+    assert stored_students() == SEEDED_STUDENTS
+
+
+def test_the_accounts_panel_is_admin_only(
+    anonymous_client, teacher_client, student_client
+) -> None:
+    anonymous = anonymous_client.get("/accounts")
+    assert anonymous.status_code == 303
+    assert anonymous.headers["location"] == "/login?next=/accounts"
+    assert teacher_client.get("/accounts").status_code == 403
+    assert student_client.get("/accounts").status_code == 403
+
+
+def test_the_add_account_dialog_opens_for_an_admin(accounts_client) -> None:
+    fragment = accounts_client.get("/accounts/new", headers=HTMX_HEADERS)
+    assert fragment.status_code == 200
+    assert 'action="/accounts"' in fragment.text
+    assert 'name="username"' in fragment.text
+    assert 'type="password"' in fragment.text
+    assert "Grace Hopper" in fragment.text
+
+    plain = accounts_client.get("/accounts/new")
+    assert plain.status_code == 200
+    assert "Add account" in plain.text
+
+
+def test_an_admin_creates_an_account_over_htmx(accounts_client) -> None:
+    response = accounts_client.post(
+        "/accounts",
+        data={
+            "username": "ana.perez",
+            "role": "student",
+            "student_id": "2",
+            "password": PASSWORD,
+            "confirm": PASSWORD,
+        },
+        headers=HTMX_HEADERS,
+    )
+
+    assert response.status_code == 200
+    assert "ana.perez" in response.text
+    account = database.get_user_by_username("ana.perez")
+    assert account is not None
+    assert account.student_id == 2
+    assert database.authenticate("ana.perez", PASSWORD) is not None
+
+
+def test_an_admin_creates_an_account_without_javascript(accounts_client) -> None:
+    response = accounts_client.post(
+        "/accounts",
+        data={
+            "username": "secundario",
+            "role": "teacher",
+            "password": PASSWORD,
+            "confirm": PASSWORD,
+        },
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/accounts"
+    assert database.get_user_by_username("secundario") is not None
+
+
+@pytest.mark.parametrize(
+    "payload, message",
+    [
+        (
+            {"username": "TEACHER.ONE", "role": "admin", "password": PASSWORD, "confirm": PASSWORD},
+            "already taken",
+        ),
+        (
+            {"username": "corta.clave", "role": "admin", "password": "corta12", "confirm": "corta12"},
+            "at least 8 characters",
+        ),
+        (
+            {"username": "nuevo.alumno", "role": "student", "password": PASSWORD, "confirm": PASSWORD},
+            "must be linked",
+        ),
+        (
+            {"username": "mal.vinculo", "role": "teacher", "student_id": "1",
+             "password": PASSWORD, "confirm": PASSWORD},
+            "only a student account",
+        ),
+        (
+            {"username": "desigual", "role": "admin", "password": PASSWORD, "confirm": "otra-clave"},
+            "do not match",
+        ),
+        (
+            {"username": "a b", "role": "admin", "password": PASSWORD, "confirm": PASSWORD},
+            "3 to 32 characters",
+        ),
+    ],
+)
+def test_a_rejected_account_is_never_stored(
+    accounts_client, payload: dict[str, str], message: str
+) -> None:
+    before = stored_accounts()
+
+    response = accounts_client.post("/accounts", data=payload, headers=HTMX_HEADERS)
+
+    assert response.status_code == 422
+    assert message in response.text
+    assert "Traceback" not in response.text
+    assert stored_accounts() == before
+
+
+def test_an_admin_resets_a_password_over_htmx(accounts_client) -> None:
+    dialog = accounts_client.get("/accounts/teacher.one/password", headers=HTMX_HEADERS)
+    assert dialog.status_code == 200
+    assert 'action="/accounts/teacher.one/password"' in dialog.text
+    assert "teacher.one" in dialog.text
+
+    response = accounts_client.post(
+        "/accounts/teacher.one/password",
+        data={"password": "otra-clave-larga", "confirm": "otra-clave-larga"},
+        headers=HTMX_HEADERS,
+    )
+
+    assert response.status_code == 200
+    assert database.authenticate("teacher.one", PASSWORD) is None
+    assert database.authenticate("teacher.one", "otra-clave-larga") is not None
+
+
+def test_an_admin_resets_a_password_without_javascript(accounts_client) -> None:
+    response = accounts_client.post(
+        "/accounts/admin.one/password",
+        data={"password": "otra-clave-larga", "confirm": "otra-clave-larga"},
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/accounts"
+    assert database.authenticate("admin.one", "otra-clave-larga") is not None
+
+
+def test_a_rejected_password_change_changes_nothing(accounts_client) -> None:
+    response = accounts_client.post(
+        "/accounts/admin.one/password",
+        data={"password": "corta12", "confirm": "corta12"},
+        headers=HTMX_HEADERS,
+    )
+
+    assert response.status_code == 422
+    assert "at least 8 characters" in response.text
+    assert "Traceback" not in response.text
+    assert database.authenticate("admin.one", PASSWORD) is not None
+
+
+def test_an_unknown_account_answers_not_found(accounts_client) -> None:
+    dialog = accounts_client.get("/accounts/nadie/password", headers=HTMX_HEADERS)
+    assert dialog.status_code == 404
+    assert "not found" in dialog.text.lower()
+    plain = accounts_client.get("/accounts/nadie/password")
+    assert plain.status_code == 303
+    assert plain.headers["location"] == "/accounts"
+    posted = accounts_client.post(
+        "/accounts/nadie/password",
+        data={"password": PASSWORD, "confirm": PASSWORD},
+        headers=HTMX_HEADERS,
+    )
+    assert posted.status_code == 404
+
+
+def test_a_teacher_cannot_manage_accounts(roster_teacher_client) -> None:
+    assert roster_teacher_client.get("/accounts/new").status_code == 403
+    assert (
+        roster_teacher_client.post(
+            "/accounts",
+            data={"username": "intruso", "role": "admin",
+                  "password": PASSWORD, "confirm": PASSWORD},
+        ).status_code
+        == 403
+    )
+    assert roster_teacher_client.get("/accounts/teacher.one/password").status_code == 403
+    assert database.get_user_by_username("intruso") is None

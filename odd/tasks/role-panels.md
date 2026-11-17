@@ -60,7 +60,8 @@ S7. Boundaries between roles: a teacher gets `403` on the accounts and branding
   Route: pending, after T1.
 - T4 (S1, S7) — Role separation in the shell: the signed-in top bar becomes the
   per-role navigation (admin: students, accounts, branding; teacher: students;
-  student: own record), and the guards follow. Route: pending, after T1.
+  student: own record), and the guards follow. Route: inline (a writer died at
+  rate limit after doing most of the work; see L7). Status: done.
 - T5 (S1–S7) — Tests: one RED test per new rule before its implementation, the
   existing behavior each change touches pinned, and a differential check against the
   parent branch for surfaces this phase does not name. Route: pending.
@@ -96,6 +97,14 @@ L4 (2026-11-16, parent, decision): this phase starts on a branch of its own,
 reviewed and merged separately. The login phase's independent verification (T8 of
 `web-auth.md`) stays un-run at the user's move-on; it is inherited as T7 here rather
 than silently closed.
+
+L7 (2026-11-16, parent, decision): the T4 writer reached rate limit mid-task after
+writing most of the unit; the parent inspected its full diff, replayed the RED it had
+not reported (four new/rewritten tests fail against the pre-hub source with the test
+changes alone, then pass with the implementation), and committed the unit. Canvas
+comment `j9bxvk62` is implemented in the same unit: the account name in every top bar
+is a plain label (`partials/identity.html`), and the comment is resolved on the
+canvas.
 
 L6 (2026-11-16, user, via the design canvas and the choice prompt): chose
 **`design/role-panels/03-role-hub.html`** as the direction for this phase; the

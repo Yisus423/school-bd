@@ -42,9 +42,12 @@ document.body.addEventListener("click", (event) => {
   if (button) button.closest("dialog")?.close();
 });
 
-// A successful create, update or delete reports `student-changed`.
-document.body.addEventListener("student-changed", () => {
+// A successful write reports `student-changed` (students) or `data-changed`
+// (accounts and the screens that follow); either closes the open dialog.
+const clearDialogs = () => {
   document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   const host = document.getElementById("dialog-host");
   if (host) host.innerHTML = "";
-});
+};
+document.body.addEventListener("student-changed", clearDialogs);
+document.body.addEventListener("data-changed", clearDialogs);
