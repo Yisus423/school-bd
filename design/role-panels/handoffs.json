@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "chosen": "03-role-hub.html",
+  "handoffs": {
+    "03-role-hub.html": {
+      "status": "in_progress",
+      "queued": false,
+      "sentAt": "2026-11-17T04:24:24.399Z",
+      "startedAt": "2026-11-17T04:36:02.068Z",
+      "implementedAt": null,
+      "feature": "odd/tasks/role-panels.md",
+      "note": "Chosen by the user. Implementing: per-role hub on /, accounts and branding for the admin, username as a plain label next to Sign out."
+    }
+  }
+}
