@@ -48,9 +48,10 @@ S7. Boundaries between roles: a teacher gets `403` on the accounts and branding
 ## Tasks
 
 - T1 (S1–S5, S4 first) — Design directions: sync the project design system
-  (`design/system.md`, `design/system.html` — it does not exist yet and the canvas
+  (`design/system.md`, `design/system.html` — it did not exist and the canvas
   requires it), then three artboards under `design/role-panels/` showing the three
-  role experiences, plus `design.json`. Route: worker. Status: in progress.
+  role experiences, plus `design.json`. Route: inline (a writer stalled twice on
+  this unit; see L5). Status: done. Chosen artboard: `03-role-hub.html` (L6).
 - T2 (S1, S2, S7) — Admin accounts panel: list accounts, create one (role, username,
   password, student link), reset a password. Route: pending, after T1.
 - T3 (S1, S3, S7) — Admin branding panel: change the logo and the seed color from the
@@ -95,3 +96,20 @@ L4 (2026-11-16, parent, decision): this phase starts on a branch of its own,
 reviewed and merged separately. The login phase's independent verification (T8 of
 `web-auth.md`) stays un-run at the user's move-on; it is inherited as T7 here rather
 than silently closed.
+
+L6 (2026-11-16, user, via the design canvas and the choice prompt): chose
+**`design/role-panels/03-role-hub.html`** as the direction for this phase; the
+top-tabs and side-rail artboards stay as alternatives. The S4 gate is passed and
+implementation tasks may start. With the handoff came canvas comment `j9bxvk62`: the
+username next to Sign out looks clickable. Decision: it renders as a plain label, not
+a chip — the details of an account live in the admin's accounts panel (T2), and no
+self-details page is added. The comment is resolved on the canvas when that lands in
+the templates.
+
+L5 (2026-11-16, parent, decision): T1 was routed to a writer twice and both launches
+died at startup with harness-level errors (an extension conflict and a missing
+provider key in the worker's own environment; one earlier worker task on the perf
+unit did complete, so the failure is intermittent but this unit lost the coin toss
+three ways with the verify agent). The unit ran inline instead: the design system
+was captured by script extraction from `beer.min.css` and the app's own templates,
+and the three artboards were written by hand. Same content, different route.

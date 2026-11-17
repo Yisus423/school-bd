@@ -91,6 +91,14 @@ def teacher_client(teacher):
 
 
 @pytest.fixture
+def admin_client(admin):
+    """A client already signed in as an administrator."""
+    with TestClient(web.app, follow_redirects=False) as test_client:
+        sign_in(test_client, "admin.one")
+        yield test_client
+
+
+@pytest.fixture
 def student_client(student_account):
     """A client already signed in as the student that owns the first record."""
     with TestClient(web.app, follow_redirects=False) as test_client:
@@ -111,11 +119,29 @@ def custom_branding():
         web.app.dependency_overrides.pop(settings.get_school_settings, None)
 
 
-def test_root_redirects_to_students(teacher_client, seeded_database) -> None:
+def test_teacher_hub_has_only_the_students_card(
+    teacher_client, seeded_database
+) -> None:
     response = teacher_client.get("/")
 
-    assert response.status_code == 303
-    assert response.headers["location"] == "/students"
+    assert response.status_code == 200
+    assert re.findall(
+        r'<a class="border round role-card" href="([^"]+)">', response.text
+    ) == ["/students"]
+    assert 'href="/accounts"' not in response.text
+    assert 'href="/branding"' not in response.text
+    assert stored_students() == SEEDED_STUDENTS
+
+
+def test_admin_hub_has_students_accounts_and_branding_cards(
+    admin_client, seeded_database
+) -> None:
+    response = admin_client.get("/")
+
+    assert response.status_code == 200
+    assert re.findall(
+        r'<a class="border round role-card" href="([^"]+)">', response.text
+    ) == ["/students", "/accounts", "/branding"]
     assert stored_students() == SEEDED_STUDENTS
 
 
@@ -619,7 +645,7 @@ def test_a_teacher_signs_in_and_reaches_the_student_admin(
     response = sign_in(anonymous_client, "TEACHER.ONE")
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/students"
+    assert response.headers["location"] == "/"
     cookie = response.headers["set-cookie"].lower()
     assert "school_session=" in cookie
     assert "httponly" in cookie
@@ -627,26 +653,36 @@ def test_a_teacher_signs_in_and_reaches_the_student_admin(
     assert "path=/" in cookie
     assert "max-age=" in cookie
 
-    page = anonymous_client.get("/students")
+    page = anonymous_client.get("/")
     assert page.status_code == 200
-    assert "Ada Lovelace" in page.text
+    assert "Students" in page.text
     assert "teacher.one" in page.text
     assert "Sign out" in page.text
 
+    student_admin = anonymous_client.get("/students")
+    assert student_admin.status_code == 200
+    assert "Ada Lovelace" in student_admin.text
 
-def test_an_admin_reaches_the_student_admin_like_a_teacher(
+
+def test_an_admin_signs_in_and_reaches_the_role_hub(
     anonymous_client, admin
 ) -> None:
     response = sign_in(anonymous_client, "admin.one")
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/students"
+    assert response.headers["location"] == "/"
 
-    page = anonymous_client.get("/students")
+    page = anonymous_client.get("/")
     assert page.status_code == 200
-    assert "Ada Lovelace" in page.text
+    assert "Students" in page.text
+    assert "Accounts" in page.text
+    assert "Branding" in page.text
     assert "admin.one" in page.text
     assert "Sign out" in page.text
+
+    student_admin = anonymous_client.get("/students")
+    assert student_admin.status_code == 200
+    assert "Ada Lovelace" in student_admin.text
 
 
 def test_bad_credentials_are_refused_and_open_no_session(
@@ -727,7 +763,7 @@ def test_signing_in_again_sends_you_to_your_own_home(
     student_page = student_client.get("/login")
 
     assert teacher_page.status_code == 303
-    assert teacher_page.headers["location"] == "/students"
+    assert teacher_page.headers["location"] == "/"
     assert student_page.status_code == 303
     assert student_page.headers["location"] == "/me"
 
@@ -735,9 +771,60 @@ def test_signing_in_again_sends_you_to_your_own_home(
 def test_the_root_sends_every_visitor_to_their_own_place(
     anonymous_client, teacher_client, student_client
 ) -> None:
-    assert anonymous_client.get("/").headers["location"] == "/login"
-    assert teacher_client.get("/").headers["location"] == "/students"
-    assert student_client.get("/").headers["location"] == "/me"
+    anonymous = anonymous_client.get("/")
+    teacher = teacher_client.get("/")
+    student = student_client.get("/")
+
+    assert anonymous.status_code == 303
+    assert anonymous.headers["location"] == "/login"
+    assert teacher.status_code == 200
+    assert "Good morning, teacher.one" in teacher.text
+    assert student.status_code == 303
+    assert student.headers["location"] == "/me"
+
+
+def test_role_hubs_never_leak_student_records(
+    teacher_client, admin_client
+) -> None:
+    for page in (teacher_client.get("/"), admin_client.get("/")):
+        assert page.status_code == 200
+        assert "Ada Lovelace" not in page.text
+        assert "Grace Hopper" not in page.text
+
+
+def test_the_signed_in_account_is_a_plain_label_in_every_top_bar(
+    teacher_client, student_client
+) -> None:
+    pages = (
+        (teacher_client.get("/"), "teacher.one"),
+        (teacher_client.get("/students"), "teacher.one"),
+        (student_client.get("/me"), "ada.lovelace"),
+    )
+
+    for page, username in pages:
+        assert page.status_code == 200
+        assert f'<span class="account-label">{username}</span>' in page.text
+        assert f'<span class="chip">{username}</span>' not in page.text
+        assert 'method="post" action="/logout"' in page.text
+
+
+def test_the_role_hub_hides_internal_names_and_external_urls(
+    teacher_client
+) -> None:
+    response = teacher_client.get("/")
+
+    assert response.status_code == 200
+    assert "http://" not in response.text
+    assert "https://" not in response.text
+    for internal_name in (
+        "db.sqlite3",
+        "models.py",
+        "web.py",
+        "SQLite",
+        "CLI",
+        "BeerCSS",
+    ):
+        assert internal_name not in response.text
 
 
 def test_logout_closes_the_session_everywhere(teacher_client) -> None:
@@ -781,7 +868,7 @@ def test_the_next_parameter_cannot_leave_this_site(anonymous_client, teacher) ->
     local = sign_in(anonymous_client, "teacher.one", next_path="/students?q=Ada")
 
     assert offsite.status_code == 303
-    assert offsite.headers["location"] == "/students"
+    assert offsite.headers["location"] == "/"
     assert local.status_code == 303
     assert local.headers["location"] == "/students?q=Ada"
 

@@ -34,6 +34,73 @@ main#main {
   white-space: nowrap;
 }
 
+.account-label {
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.role-hub {
+  padding-block: 1rem 3rem;
+}
+
+.role-greeting {
+  margin-block: 1rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.role-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 1rem;
+  max-inline-size: 62rem;
+}
+
+.role-card {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 20rem;
+  padding: 1.25rem;
+  background-color: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--elevate1);
+}
+
+.role-card:hover,
+.role-card:focus-visible {
+  background-color: var(--primary-container);
+  color: var(--on-primary-container);
+  box-shadow: var(--elevate2);
+  outline: none;
+}
+
+.role-card > svg {
+  inline-size: 2rem;
+  block-size: 2rem;
+  display: block;
+  color: var(--primary);
+}
+
+.role-card h2 {
+  margin-block: 0.65rem 0.25rem;
+  font-size: 1.05rem;
+}
+
+.role-card p {
+  margin: 0;
+  font-size: 0.875rem;
+  opacity: 0.75;
+}
+
+.role-card-action {
+  display: inline-block;
+  margin-block-start: 0.8rem;
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 table {
   inline-size: 100%;
 }

@@ -49,7 +49,7 @@ SQLITE_INTEGER_MAX = 2**63 - 1
 SESSION_COOKIE = "school_session"
 SESSION_MAX_AGE = int(db.SESSION_TTL.total_seconds())
 STAFF_ROLES = (Role.teacher, Role.admin)
-STAFF_HOME = "/students"
+STAFF_HOME = "/"
 STUDENT_HOME = "/me"
 LOGIN_PATH = "/login"
 # The cookie is not marked Secure by default, because the local development server
@@ -403,10 +403,19 @@ def missing_student_response(
     return redirect_to_students(query, course)
 
 
-@app.get("/")
-def index(account: Account) -> RedirectResponse:
-    """Send the browser to the page that fits the visitor."""
-    return RedirectResponse(home_for(account), status_code=303)
+@app.get("/", response_class=HTMLResponse)
+def index(request: Request, settings: Settings, account: Account) -> Response:
+    """Send each visitor to their own place, or open the staff role hub."""
+    if account is None:
+        return RedirectResponse(LOGIN_PATH, status_code=303)
+    if account.role is Role.student:
+        return RedirectResponse(STUDENT_HOME, status_code=303)
+    return templates.TemplateResponse(
+        request,
+        "hub.html",
+        {"settings": settings, "account": account},
+        status_code=200,
+    )
 
 
 @app.get("/login", response_class=HTMLResponse)

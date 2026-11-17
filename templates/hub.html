@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Home · {{ settings.name }}</title>
+  {# Root-relative asset paths: they survive proxies and keep the page offline. #}
+  <link rel="stylesheet" href="/static/vendor/beer.min.css">
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="icon" href="/static/{{ settings.logo }}">
+</head>
+<body data-theme-source="{{ settings.theme_source }}" data-theme-fallback="{{ settings.color }}">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header>
+    <nav>
+      <img class="circle" src="/static/{{ settings.logo }}"
+           alt="{{ settings.name }} logo" width="40" height="40">
+      <h5 class="max">{{ settings.name }}</h5>
+      {% include 'partials/identity.html' %}
+    </nav>
+  </header>
+
+  <main id="main" class="responsive max role-hub">
+    <p class="role-greeting">Good morning, {{ account.username }}</p>
+
+    <section class="role-cards" aria-label="Your areas">
+      <a class="border round role-card" href="/students">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="9" cy="8" r="3"></circle>
+          <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"></path>
+          <circle cx="17" cy="9" r="2.5"></circle>
+          <path d="M15 15.5c2.8.3 5 2.6 5 5.5"></path>
+        </svg>
+        <h2>Students</h2>
+        <p>Add, edit or remove student records, search by name or course.</p>
+        <span class="role-card-action">Open the list →</span>
+      </a>
+
+      {% if account.role.value == "admin" %}
+        <a class="border round role-card" href="/accounts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="8" cy="12" r="4"></circle>
+            <path d="M11 9l8-8"></path>
+            <path d="M16 4l2 2"></path>
+            <path d="M14 6l2 2"></path>
+          </svg>
+          <h2>Accounts</h2>
+          <p>Create accounts and set new passwords.</p>
+          <span class="role-card-action">Manage accounts →</span>
+        </a>
+
+        <a class="border round role-card" href="/branding">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3a9 9 0 1 0 0 18h1.5a1.5 1.5 0 0 0 0-3H12a2 2 0 0 1 0-4h3.5A5.5 5.5 0 0 0 21 8.5C21 5.5 17 3 12 3Z"></path>
+            <circle cx="7.5" cy="11" r="1"></circle>
+            <circle cx="10" cy="7" r="1"></circle>
+            <circle cx="15" cy="7" r="1"></circle>
+          </svg>
+          <h2>Branding</h2>
+          <p>Set the school name, logo and color.</p>
+          <span class="role-card-action">Open branding →</span>
+        </a>
+      {% endif %}
+    </section>
+  </main>
+
+  <footer>
+    <nav>{{ settings.name }}</nav>
+  </footer>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>
