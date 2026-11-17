@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>School DB · design system</title>
+<style>
+  :root{
+    --primary:#6750a4; --on-primary:#fff; --primary-container:#e9ddff; --on-primary-container:#22005d;
+    --secondary-container:#e8def8; --on-secondary-container:#1e192b; --error:#ba1a1a; --on-error:#fff;
+    --background:#fffbff; --surface:#fdf8fd; --surface-container:#f2ecf1;
+    --active:rgb(128 128 128 / .192); --outline:rgb(0 0 0 / .35);
+    --elevate1:0 .125rem .125rem 0 rgb(0 0 0 / .32); --elevate2:0 .25rem .5rem 0 rgb(0 0 0 / .4);
+    --font:Inter,Roboto,"Helvetica Neue","Arial Nova","Nimbus Sans",Noto Sans,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:2.5rem;background:var(--background);color:#1d1b20;font-family:var(--font);font-size:1rem;line-height:1.5}
+  main{max-width:1320px;margin:0 auto}
+  h1{font-size:2rem;margin:0 0 .25rem} h2{font-size:1.25rem;margin:2.5rem 0 1rem;border-bottom:1px solid var(--outline);padding-bottom:.5rem}
+  .note{color:#49454f;font-size:.875rem;margin:0 0 .5rem}
+  .swatches{display:flex;flex-wrap:wrap;gap:1rem}
+  .swatch{width:11rem;border-radius:.75rem;overflow:hidden;border:1px solid var(--outline)}
+  .swatch>div:first-child{height:4.5rem}
+  .swatch>div:last-child{padding:.5rem .75rem;background:var(--surface);font-size:.75rem}
+  .swatch code{display:block;font-size:.75rem;color:#49454f}
+  .typescale>div{margin-block:.6rem} .typescale .label{font-size:.75rem;color:#49454f;margin-left:.75rem}
+  .row{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+  .button{display:inline-block;padding:.6rem 1.5rem;border-radius:6.25rem;background:var(--primary);color:var(--on-primary);font-size:.875rem;border:0}
+  .button.text{background:transparent;color:var(--primary)}
+  .chip{display:inline-flex;align-items:center;height:2rem;padding:0 .75rem;border-radius:.5rem;background:var(--secondary-container);color:var(--on-secondary-container);font-size:.75rem}
+  .field{width:16rem;height:3rem;border:1px solid var(--outline);border-radius:.25rem .25rem 0 0;background:var(--surface);display:flex;flex-direction:column;justify-content:center;padding:0 1rem}
+  .field label{font-size:.75rem;color:var(--primary)} .field span{font-size:.9rem;color:#49454f}
+  table{border-collapse:collapse;background:var(--surface);border-radius:.75rem;overflow:hidden;box-shadow:var(--elevate1)}
+  th,td{text-align:left;padding:.6rem 1.1rem;font-size:.875rem} th{color:#49454f;font-weight:600;border-bottom:1px solid var(--outline)}
+  td.numeric{text-align:right;font-variant-numeric:tabular-nums}
+  .dialog{width:26rem;border-radius:1.75rem;background:var(--surface);box-shadow:var(--elevate2);padding:1.5rem}
+  .radius{display:inline-block;width:4.5rem;height:3rem;background:var(--primary-container);border:1px solid var(--outline);margin-right:1rem;vertical-align:middle}
+  .elev{display:inline-block;width:9rem;height:3.5rem;background:var(--surface);border-radius:.75rem;margin-right:1rem;vertical-align:middle}
+</style>
+</head>
+<body>
+<main>
+  <h1>School DB design system</h1>
+  <p class="note">Default BeerCSS (Material You) palette from <code>static/vendor/beer.min.css</code>. At runtime the app re-derives the whole palette from the school logo or seed color, so treat every color as “derived from the school’s seed”.</p>
+
+  <h2>Colors</h2>
+  <div class="swatches">
+    <div class="swatch"><div style="background:var(--primary)"></div><div>primary<code>--primary · #6750a4</code></div></div>
+    <div class="swatch"><div style="background:var(--on-primary);border-bottom:1px solid var(--outline)"></div><div>on-primary<code>#ffffff</code></div></div>
+    <div class="swatch"><div style="background:var(--primary-container)"></div><div>primary-container<code>#e9ddff</code></div></div>
+    <div class="swatch"><div style="background:var(--secondary-container)"></div><div>secondary-container<code>#e8def8</code></div></div>
+    <div class="swatch"><div style="background:var(--error)"></div><div>error<code>#ba1a1a</code></div></div>
+    <div class="swatch"><div style="background:var(--surface);border-bottom:1px solid var(--outline)"></div><div>surface<code>#fdf8fd</code></div></div>
+    <div class="swatch"><div style="background:var(--surface-container)"></div><div>surface-container<code>#f2ecf1</code></div></div>
+    <div class="swatch"><div style="background:var(--background);border-bottom:1px solid var(--outline)"></div><div>background<code>#fffbff</code></div></div>
+  </div>
+
+  <h2>Type scale</h2>
+  <div class="typescale">
+    <div style="font-size:3.5625rem">Display 57<span class="label">3.5625rem</span></div>
+    <div style="font-size:1.25rem;font-weight:600">Headline<span class="label">1.25rem in practice (h5 in templates)</span></div>
+    <div style="font-size:1rem">Body — the working size<span class="label">--size · 1rem</span></div>
+    <div style="font-size:.875rem;color:#49454f">Secondary — hints, field labels<span class="label">.875rem</span></div>
+    <div style="font-size:.75rem;color:#49454f">CAPTION · CHIPS · METADATA<span class="label">.75rem</span></div>
+  </div>
+
+  <h2>Shape &amp; elevation</h2>
+  <p class="row">
+    <span class="radius" style="border-radius:.5rem"></span><span class="note">chip .5rem</span>
+    <span class="radius" style="border-radius:.25rem .25rem 0 0"></span><span class="note">field top .25rem</span>
+    <span class="radius" style="border-radius:1.75rem"></span><span class="note">dialog 1.75rem</span>
+    <span class="radius" style="border-radius:12px"></span><span class="note">logo 12px</span>
+  </p>
+  <p class="row">
+    <span class="elev" style="box-shadow:var(--elevate1)"></span><span class="note">elevate1 · cards</span>
+    <span class="elev" style="box-shadow:var(--elevate2)"></span><span class="note">elevate2 · dialogs</span>
+  </p>
+
+  <h2>Components</h2>
+  <p class="row">
+    <button class="button" type="button">Filled action</button>
+    <button class="button text" type="button">Quiet action</button>
+    <span class="chip">teacher.one</span>
+    <span class="chip">Students</span>
+    <span class="field"><label>Search</label><span>adaptive placeholder</span></span>
+  </p>
+  <p class="row" style="margin-top:1.5rem;align-items:flex-start">
+    <table><thead><tr><th>ID</th><th>Name</th><th class="numeric">Age</th><th>Actions</th></tr></thead>
+    <tbody><tr><td class="numeric">1</td><td>Ada Lovelace</td><td class="numeric">36</td><td>✎&nbsp;&nbsp;🗑</td></tr></tbody></table>
+    <div class="dialog">
+      <h5 style="margin:0 0 1rem">Add account</h5>
+      <div class="field" style="width:100%;margin-bottom:.75rem"><label>Username</label><span>ana.perez</span></div>
+      <div class="field" style="width:100%;margin-bottom:1rem"><label>Password</label><span>••••••••</span></div>
+      <div class="row" style="justify-content:flex-end">
+        <button class="button text" type="button">Cancel</button>
+        <button class="button" type="button">Create</button>
+      </div>
+    </div>
+  </p>
+</main>
+</body>
+</html>

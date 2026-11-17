@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Role panels · top tabs</title>
+<style>
+  :root{
+    --primary:#6750a4; --on-primary:#fff; --primary-container:#e9ddff; --on-primary-container:#22005d;
+    --secondary-container:#e8def8; --on-secondary-container:#1e192b; --error:#ba1a1a; --on-error:#fff;
+    --background:#fffbff; --surface:#fdf8fd; --surface-container:#f2ecf1;
+    --outline:rgb(0 0 0 / .35); --active:rgb(128 128 128 / .192);
+    --elevate1:0 .125rem .125rem 0 rgb(0 0 0 / .32); --elevate2:0 .25rem .5rem 0 rgb(0 0 0 / .4);
+    --font:Inter,Roboto,"Helvetica Neue","Arial Nova","Nimbus Sans",Noto Sans,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--background);color:#1d1b20;font-family:var(--font);font-size:1rem;line-height:1.5}
+  section{padding:1.5rem 2.5rem 3rem}
+  section+section{border-top:6px solid var(--surface-container)}
+  .role-tag{display:inline-flex;align-items:center;gap:.5rem;margin:1rem 0 .25rem;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:#49454f}
+  .role-tag b{background:var(--secondary-container);color:var(--on-secondary-container);padding:.15rem .6rem;border-radius:.5rem}
+  header.top{display:flex;align-items:center;gap:.9rem;background:var(--surface);padding:.7rem 1.1rem;border-radius:0 0 .75rem .75rem;box-shadow:var(--elevate1)}
+  .logo{width:40px;height:40px;border-radius:12px;background:#0b57d0;color:#fff;display:grid;place-items:center;font-size:1.1rem;flex:none}
+  h1{font-size:1.25rem;font-weight:600;margin:0;flex:1}
+  .chip{display:inline-flex;align-items:center;height:2rem;padding:0 .75rem;border-radius:.5rem;background:var(--secondary-container);color:var(--on-secondary-container);font-size:.75rem}
+  .out{background:transparent;border:0;color:var(--primary);font:inherit;font-size:.875rem;padding:.4rem .75rem;border-radius:6.25rem;cursor:pointer}
+  .out:hover{background:var(--active)}
+  nav.tabs{display:flex;gap:.25rem;margin-top:.9rem;border-bottom:1px solid var(--outline)}
+  nav.tabs a{padding:.7rem 1.25rem;font-size:.9rem;color:#49454f;text-decoration:none;border-radius:.5rem .5rem 0 0}
+  nav.tabs a[aria-current]{color:var(--primary);font-weight:600;box-shadow:inset 0 -3px 0 var(--primary);background:var(--primary-container)}
+  main{margin-top:1.25rem}
+  .toolbar{display:flex;gap:1rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap}
+  .field{height:3rem;border:1px solid var(--outline);border-radius:.25rem .25rem 0 0;background:var(--surface);display:flex;flex-direction:column;justify-content:center;padding:0 1rem}
+  .field label{font-size:.75rem;color:var(--primary)} .field span{font-size:.9rem;color:#49454f}
+  .button{display:inline-block;padding:.65rem 1.4rem;border-radius:6.25rem;background:var(--primary);color:var(--on-primary);font-size:.875rem;border:0;cursor:pointer}
+  article{background:var(--surface);border-radius:.75rem;box-shadow:var(--elevate1);overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  caption{text-align:left;padding:.9rem 1.1rem .2rem;font-size:.875rem;color:#49454f}
+  th,td{text-align:left;padding:.65rem 1.1rem;font-size:.9rem}
+  th{color:#49454f;font-weight:600;border-bottom:1px solid var(--outline)}
+  tbody tr+tr td{border-top:1px solid rgb(0 0 0 / .07)}
+  td.numeric,th.numeric{text-align:right;font-variant-numeric:tabular-nums}
+  td.act{text-align:right;white-space:nowrap;color:#49454f}
+  .count{padding:.6rem 1.1rem;font-size:.8rem;color:#49454f;border-top:1px solid rgb(0 0 0 / .07)}
+  .scrim{position:relative}
+  .dialog{position:absolute;inset:0;background:var(--overlay);display:grid;place-items:center;border-radius:.75rem}
+  .dialog>form{width:27rem;background:var(--surface);border-radius:1.75rem;box-shadow:var(--elevate2);padding:1.5rem}
+  .dialog h2{font-size:1.2rem;margin:0 0 1rem}
+  .dialog .field{width:100%;margin-bottom:.7rem}
+  .dialog nav{display:flex;justify-content:flex-end;gap:.4rem;margin-top:1rem}
+  .record{max-width:30rem;background:var(--surface);border-radius:.75rem;box-shadow:var(--elevate1);padding:1.25rem 1.5rem}
+  .record h2{margin:.1rem 0 .75rem;font-size:1.3rem}
+  .record dl{display:grid;grid-template-columns:auto 1fr;gap:.4rem 1.5rem;margin:0;font-size:.95rem}
+  .record dt{color:#49454f;font-size:.8rem;padding-top:.2rem}
+  .muted{color:#49454f;font-size:.875rem}
+</style>
+</head>
+<body>
+
+<section>
+  <p class="role-tag">Direction 01 · top tabs <b>Teacher view</b></p>
+  <header class="top">
+    <div class="logo">🎓</div><h1>School DB</h1>
+    <span class="chip">Students</span><span class="chip">teacher.one</span>
+    <button class="out" type="button">Sign out</button>
+  </header>
+  <nav class="tabs" aria-label="Teacher areas">
+    <a href="#" aria-current="page">Students</a>
+  </nav>
+  <main>
+    <div class="toolbar">
+      <div class="field" style="flex:1;max-width:22rem"><label>Search</label><span>Try “Ada”…</span></div>
+      <div class="field" style="width:13rem"><label>Course</label><span>All courses</span></div>
+      <span style="flex:1"></span>
+      <button class="button" type="button">Add student</button>
+    </div>
+    <article>
+      <table>
+        <caption>All students, ordered by ID.</caption>
+        <thead><tr><th class="numeric">ID</th><th>Name</th><th class="numeric">Age</th><th>Birthday</th><th>Course</th><th style="text-align:right">Actions</th></tr></thead>
+        <tbody>
+          <tr><td class="numeric">1</td><td>Ada Lovelace</td><td class="numeric">36</td><td>1815-12-10</td><td><span class="chip">Mathematics</span></td><td class="act">✎&nbsp;&nbsp;🗑</td></tr>
+          <tr><td class="numeric">2</td><td>Grace Hopper</td><td class="numeric">45</td><td>1906-12-09</td><td><span class="chip">Computer Science</span></td><td class="act">✎&nbsp;&nbsp;🗑</td></tr>
+          <tr><td class="numeric">3</td><td>Alan Turing</td><td class="numeric">41</td><td>1912-06-23</td><td><span class="chip">Mathematics</span></td><td class="act">✎&nbsp;&nbsp;🗑</td></tr>
+          <tr><td class="numeric">4</td><td>Katherine Johnson</td><td class="numeric">85</td><td>1918-08-26</td><td><span class="chip">Physics</span></td><td class="act">✎&nbsp;&nbsp;🗑</td></tr>
+        </tbody>
+      </table>
+      <div class="count">4 students</div>
+    </article>
+  </main>
+</section>
+
+<section>
+  <p class="role-tag">Direction 01 · top tabs <b>Admin view — accounts</b></p>
+  <header class="top">
+    <div class="logo">🎓</div><h1>School DB</h1>
+    <span class="chip">Accounts</span><span class="chip">admin.one</span>
+    <button class="out" type="button">Sign out</button>
+  </header>
+  <nav class="tabs" aria-label="Admin areas">
+    <a href="#">Students</a><a href="#" aria-current="page">Accounts</a><a href="#">Branding</a>
+  </nav>
+  <main>
+    <div class="toolbar">
+      <div class="field" style="flex:1;max-width:22rem"><label>Search</label><span>Username or role…</span></div>
+      <span style="flex:1"></span>
+      <button class="button" type="button">Add account</button>
+    </div>
+    <article>
+      <table>
+        <caption>Every account that can sign in.</caption>
+        <thead><tr><th class="numeric">ID</th><th>Username</th><th>Role</th><th>Student record</th><th style="text-align:right">Actions</th></tr></thead>
+        <tbody>
+          <tr><td class="numeric">1</td><td>teacher.one</td><td><span class="chip">teacher</span></td><td class="muted">—</td><td class="act">🔑</td></tr>
+          <tr><td class="numeric">2</td><td>admin.one</td><td><span class="chip">admin</span></td><td class="muted">—</td><td class="act">🔑</td></tr>
+          <tr><td class="numeric">3</td><td>ada.lovelace</td><td><span class="chip">student</span></td><td>Ada Lovelace (1)</td><td class="act">🔑</td></tr>
+          <tr><td class="numeric">4</td><td>ana.perez</td><td><span class="chip">student</span></td><td>Katherine Johnson (4)</td><td class="act">🔑</td></tr>
+        </tbody>
+      </table>
+      <div class="count">4 accounts · removing an account stays a CLI task</div>
+    </article>
+    <p class="muted" style="margin-top:.9rem">The key icon opens the reset-password dialog; creating an account opens this one:</p>
+    <div class="scrim" style="margin-top:.5rem">
+      <div class="dialog">
+        <form aria-label="Add account">
+          <h2>Add account</h2>
+          <div class="field"><label>Username</label><span>ana.perez</span></div>
+          <div class="field"><label>Role</label><span>student ▾</span></div>
+          <div class="field"><label>Student record</label><span>Katherine Johnson (4) ▾</span></div>
+          <div class="field"><label>Password</label><span>••••••••••</span></div>
+          <div class="field"><label>Repeat the password</label><span>••••••••••</span></div>
+          <nav>
+            <button class="out" type="button">Cancel</button>
+            <button class="button" type="button">Create account</button>
+          </nav>
+        </form>
+      </div>
+    </div>
+  </main>
+</section>
+
+<section>
+  <p class="role-tag">Direction 01 · top tabs <b>Student view</b></p>
+  <header class="top">
+    <div class="logo">🎓</div><h1>School DB</h1>
+    <span class="chip">ada.lovelace</span>
+    <button class="out" type="button">Sign out</button>
+  </header>
+  <main>
+    <div class="record">
+      <h2>My record</h2>
+      <dl>
+        <dt>NAME</dt><dd>Ada Lovelace</dd>
+        <dt>AGE</dt><dd>36</dd>
+        <dt>BIRTHDAY</dt><dd>1815-12-10</dd>
+        <dt>COURSE</dt><dd><span class="chip">Mathematics</span></dd>
+      </dl>
+    </div>
+    <p class="muted" style="margin-top:1rem">No tabs: the student’s only place is their own record.</p>
+  </main>
+</section>
+
+</body>
+</html>

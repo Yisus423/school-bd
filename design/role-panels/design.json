@@ -1,0 +1,28 @@
+{
+  "title": "Role panels (School DB)",
+  "brief": "One panel per role for the signed-in app: the teacher keeps the student administration, the admin gains accounts (create, reset password) and branding (logo + seed color with the palette re-deriving), and the student keeps their own record. Every artboard shows the three role experiences; the directions differ in how the admin reaches the three areas.",
+  "feature": "odd/tasks/role-panels.md",
+  "artboards": [
+    {
+      "file": "01-top-tabs.html",
+      "title": "Top tabs",
+      "tradeoff": "Smallest change to the shipped pages (the top bar grows a tab row); tabs crowd on very narrow screens, and the student view is tab-less by design.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-side-rail.html",
+      "title": "Side rail",
+      "tradeoff": "Material You rail scales to more areas and reads clearly on wide screens; it costs horizontal space from the table and is the biggest departure from the shipped layout.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-role-hub.html",
+      "title": "Role hub",
+      "tradeoff": "A calm per-role home that hides nothing and explains each area; adds one navigation hop before any real work, and the hub itself holds no data.",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}

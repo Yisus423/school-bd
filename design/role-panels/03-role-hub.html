@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Role panels · role hub</title>
+<style>
+  :root{
+    --primary:#6750a4; --on-primary:#fff; --primary-container:#e9ddff; --on-primary-container:#22005d;
+    --secondary-container:#e8def8; --on-secondary-container:#1e192b; --error:#ba1a1a;
+    --background:#fffbff; --surface:#fdf8fd; --surface-container:#f2ecf1;
+    --outline:rgb(0 0 0 / .35); --active:rgb(128 128 128 / .192);
+    --elevate1:0 .125rem .125rem 0 rgb(0 0 0 / .32); --elevate2:0 .25rem .5rem 0 rgb(0 0 0 / .4);
+    --font:Inter,Roboto,"Helvetica Neue","Arial Nova","Nimbus Sans",Noto Sans,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--background);color:#1d1b20;font-family:var(--font);font-size:1rem;line-height:1.5}
+  section{padding:1.5rem 2.5rem 3rem}
+  section+section{border-top:6px solid var(--surface-container)}
+  .role-tag{display:inline-flex;align-items:center;gap:.5rem;margin:1rem 0 .75rem;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:#49454f}
+  .role-tag b{background:var(--secondary-container);color:var(--on-secondary-container);padding:.15rem .6rem;border-radius:.5rem}
+  header.top{display:flex;align-items:center;gap:.9rem;background:var(--surface);padding:.7rem 1.1rem;border-radius:.75rem;box-shadow:var(--elevate1)}
+  .logo{width:40px;height:40px;border-radius:12px;background:#0b57d0;color:#fff;display:grid;place-items:center;font-size:1.1rem;flex:none}
+  h1{font-size:1.25rem;font-weight:600;margin:0;flex:1}
+  .chip{display:inline-flex;align-items:center;height:2rem;padding:0 .75rem;border-radius:.5rem;background:var(--secondary-container);color:var(--on-secondary-container);font-size:.75rem}
+  .out{background:transparent;border:0;color:var(--primary);font:inherit;font-size:.875rem;padding:.4rem .75rem;border-radius:6.25rem;cursor:pointer}
+  .out:hover{background:var(--active)}
+  .hello{margin:1.4rem 0 1rem;font-size:1.35rem;font-weight:600}
+  .cards{display:flex;gap:1.1rem;flex-wrap:wrap}
+  a.card{display:block;width:19rem;background:var(--surface);border-radius:.9rem;box-shadow:var(--elevate1);padding:1.25rem 1.35rem;text-decoration:none;color:inherit;border:0;cursor:pointer}
+  a.card:hover{background:var(--primary-container)}
+  .card .ico{font-size:1.5rem}
+  .card h2{margin:.4rem 0 .2rem;font-size:1.05rem}
+  .card p{margin:0;font-size:.85rem;color:#49454f}
+  .card .go{display:inline-block;margin-top:.7rem;font-size:.8rem;color:var(--primary);font-weight:600}
+  .record{max-width:30rem;background:var(--surface);border-radius:.9rem;box-shadow:var(--elevate1);padding:1.25rem 1.5rem}
+  .record h2{margin:.1rem 0 .75rem;font-size:1.3rem}
+  .record dl{display:grid;grid-template-columns:auto 1fr;gap:.4rem 1.5rem;margin:0;font-size:.95rem}
+  .record dt{color:#49454f;font-size:.8rem;padding-top:.2rem}
+  .panel{background:var(--surface);border-radius:.9rem;box-shadow:var(--elevate1);padding:1.25rem 1.5rem;max-width:60rem}
+  .panel h2{margin:.1rem 0 .3rem;font-size:1.15rem}
+  .field{height:3rem;border:1px solid var(--outline);border-radius:.25rem .25rem 0 0;background:var(--background);display:flex;flex-direction:column;justify-content:center;padding:0 1rem}
+  .field label{font-size:.75rem;color:var(--primary)} .field span{font-size:.9rem;color:#49454f}
+  .button{display:inline-block;padding:.65rem 1.4rem;border-radius:6.25rem;background:var(--primary);color:var(--on-primary);font-size:.875rem;border:0;cursor:pointer}
+  .swatch{width:4.5rem;height:4.5rem;border-radius:.9rem;border:1px solid var(--outline);display:grid;place-items:center;color:#fff;font-size:.65rem;text-align:center}
+  .row{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+  .muted{color:#49454f;font-size:.875rem}
+</style>
+</head>
+<body>
+
+<section>
+  <p class="role-tag">Direction 03 · role hub <b>Teacher view</b></p>
+  <header class="top"><div class="logo">🎓</div><h1>School DB</h1><span class="chip">teacher.one</span><button class="out" type="button">Sign out</button></header>
+  <p class="hello">Good morning, teacher.one</p>
+  <div class="cards">
+    <a class="card" href="#">
+      <div class="ico">👥</div><h2>Students</h2>
+      <p>3 enrolled · add, edit or remove records, search by name or course.</p>
+      <span class="go">Open the list →</span>
+    </a>
+  </div>
+  <p class="muted" style="margin-top:1rem">One card: the teacher’s whole world is the student list. No other area is linked.</p>
+</section>
+
+<section>
+  <p class="role-tag">Direction 03 · role hub <b>Admin view — branding card</b></p>
+  <header class="top"><div class="logo">🎓</div><h1>School DB</h1><span class="chip">admin.one</span><button class="out" type="button">Sign out</button></header>
+  <p class="hello">Good morning, admin.one</p>
+  <div class="cards">
+    <a class="card" href="#"><div class="ico">👥</div><h2>Students</h2><p>3 enrolled · the same list the teachers use.</p><span class="go">Open the list →</span></a>
+    <a class="card" href="#"><div class="ico">🔑</div><h2>Accounts</h2><p>3 accounts · create accounts and set new passwords.</p><span class="go">Manage accounts →</span></a>
+    <a class="card" href="#"><div class="ico">🎨</div><h2>Branding</h2><p>School name, logo and seed color; the palette re-derives from them.</p><span class="go">Open branding →</span></a>
+  </div>
+  <p class="muted" style="margin-top:1.2rem">The branding card opens this screen — the third admin area of the hub:</p>
+  <div class="panel" style="margin-top:.9rem">
+    <h2>Branding</h2>
+    <p class="muted" style="margin:0 0 1.1rem">These two decide the whole colorscheme: the palette re-derives the moment either changes.</p>
+    <div class="row">
+      <div class="swatch" style="background:#0b57d0">current<br>seed</div>
+      <div class="field" style="width:14rem"><label>Seed color</label><span>#0b57d0 ▾</span></div>
+      <div class="field" style="width:16rem"><label>Logo</label><span>logo.svg — Change…</span></div>
+      <span style="flex:1"></span>
+      <button class="button" type="button">Save branding</button>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="role-tag">Direction 03 · role hub <b>Student view — record on the home</b></p>
+  <header class="top"><div class="logo">🎓</div><h1>School DB</h1><span class="chip">ada.lovelace</span><button class="out" type="button">Sign out</button></header>
+  <p class="hello">Hi, Ada</p>
+  <div class="record">
+    <h2>My record</h2>
+    <dl>
+      <dt>NAME</dt><dd>Ada Lovelace</dd>
+      <dt>AGE</dt><dd>36</dd>
+      <dt>BIRTHDAY</dt><dd>1815-12-10</dd>
+      <dt>COURSE</dt><dd><span class="chip">Mathematics</span></dd>
+    </dl>
+  </div>
+  <p class="muted" style="margin-top:1rem">No cards, no navigation: the record IS the student’s home.</p>
+</section>
+
+</body>
+</html>
