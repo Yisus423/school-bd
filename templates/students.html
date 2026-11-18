@@ -7,8 +7,8 @@
   {# 422 and 404 responses carry dialog fragments, so they must be swapped. #}
   <meta name="htmx-config" content='{"responseHandling":[{"code":"422","swap":true,"error":false},{"code":"404","swap":true,"error":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":false,"error":true},{"code":"...","swap":false}]}'>
   {# Root-relative asset paths: they survive proxies and keep the page offline. #}
-  <link rel="stylesheet" href="/static/vendor/beer.min.css">
-  <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/vendor/beer.min.css?v={{ asset_version('vendor/beer.min.css') }}">
+  <link rel="stylesheet" href="/static/app.css?v={{ asset_version('app.css') }}">
   <link rel="icon" href="/static/{{ settings.logo }}">
 </head>
 <body data-theme-source="{{ settings.theme_source }}" data-theme-fallback="{{ settings.color }}">
@@ -16,9 +16,11 @@
 
   <header>
     <nav>
-      <img class="circle" src="/static/{{ settings.logo }}"
-           alt="{{ settings.name }} logo" width="40" height="40">
-      <h5 class="max">{{ settings.name }}</h5>
+      <a class="brand" href="/" aria-label="Home">
+        <img class="circle" src="/static/{{ settings.logo }}"
+             alt="{{ settings.name }} logo" width="40" height="40">
+        <h5 class="max">{{ settings.name }}</h5>
+      </a>
       <span class="chip">Students</span>
       {% include 'partials/identity.html' %}
     </nav>
@@ -73,7 +75,7 @@
     <nav>{{ settings.name }} · student administration</nav>
   </footer>
 
-  <script src="/static/vendor/htmx.min.js" defer></script>
-  <script type="module" src="/static/app.js"></script>
+  <script src="/static/vendor/htmx.min.js?v={{ asset_version('vendor/htmx.min.js') }}" defer></script>
+  <script type="module" src="/static/app.js?v={{ asset_version('app.js') }}"></script>
 </body>
 </html>

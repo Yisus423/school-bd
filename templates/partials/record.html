@@ -1,9 +1,9 @@
 {# One student's own fields, or the reason there are none to show. #}
 {% if student %}
-<table>
+<table class="record-table">
   <tbody>
     <tr><th scope="row">Name</th><td>{{ student.name }}</td></tr>
-    <tr><th scope="row">Age</th><td class="numeric">{{ student.age }}</td></tr>
+    <tr><th scope="row">Age</th><td>{{ student.age }}</td></tr>
     <tr><th scope="row">Birthday</th><td>{{ student.birthday.isoformat() }}</td></tr>
     <tr><th scope="row">Course</th><td>{{ student.course }}</td></tr>
   </tbody>

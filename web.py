@@ -18,6 +18,7 @@ Response contract
   session at all, and ``403`` when the role that signed in may not open it.
 """
 
+import hashlib
 import os
 from collections.abc import Iterable
 from pathlib import Path
@@ -35,6 +36,17 @@ from settings import SchoolSettings, get_school_settings
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+def asset_version(name: str) -> str:
+    """Version a static asset by its content, so browsers never serve it stale."""
+    path = BASE_DIR / "static" / name
+    if not path.is_file():
+        return "0"
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+
+
+templates.env.globals["asset_version"] = asset_version
 
 app = FastAPI(title="School DB", description="Student CRUD web UI")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")

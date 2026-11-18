@@ -53,7 +53,8 @@ S7. Boundaries between roles: a teacher gets `403` on the accounts and branding
   role experiences, plus `design.json`. Route: inline (a writer stalled twice on
   this unit; see L5). Status: done. Chosen artboard: `03-role-hub.html` (L6).
 - T2 (S1, S2, S7) — Admin accounts panel: list accounts, create one (role, username,
-  password, student link), reset a password. Route: pending, after T1.
+  password, student link), reset a password. Route: inline. Status: done (16 tests;
+  removal stays CLI-only per S2).
 - T3 (S1, S3, S7) — Admin branding panel: change the logo and the seed color from the
   page, with the palette re-deriving; persistence and its precedence over
   `school.toml`/env are an implementation decision to record in `## Log` when made.
@@ -97,6 +98,16 @@ L4 (2026-11-16, parent, decision): this phase starts on a branch of its own,
 reviewed and merged separately. The login phase's independent verification (T8 of
 `web-auth.md`) stays un-run at the user's move-on; it is inherited as T7 here rather
 than silently closed.
+
+L8 (2026-11-16, parent, decision): account validation keeps one authority. The web
+routes never re-validate an account: they call `database.add_user` and
+`set_user_password`, and only route each rejection to the form field that must show
+it (a model-level message containing "student record" lands on the student field,
+"password" on the password field, anything else on the username). The student-record
+select is toggled by a small inline script inside the dialog, so the form works with
+and without HTMX; server-side validation does not depend on the toggle. Account
+writes report `data-changed` (students keep `student-changed`) and `app.js` closes
+the open dialog for either.
 
 L7 (2026-11-16, parent, decision): the T4 writer reached rate limit mid-task after
 writing most of the unit; the parent inspected its full diff, replayed the RED it had

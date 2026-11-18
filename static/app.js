@@ -42,6 +42,22 @@ document.body.addEventListener("click", (event) => {
   if (button) button.closest("dialog")?.close();
 });
 
+// `data-reveal` buttons toggle the matching password field between hidden and
+// shown, swapping the eye and eye-off icons as they go.
+document.body.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-reveal]");
+  if (!button) return;
+  const input = document.getElementById(button.getAttribute("data-reveal"));
+  if (!input) return;
+  const show = input.type === "password";
+  input.type = show ? "text" : "password";
+  button.setAttribute("aria-pressed", String(show));
+  button.setAttribute("aria-label", show ? "Hide password" : "Show password");
+  for (const icon of button.querySelectorAll("svg[data-state]")) {
+    icon.hidden = icon.dataset.state !== (show ? "on" : "off");
+  }
+});
+
 // A successful write reports `student-changed` (students) or `data-changed`
 // (accounts and the screens that follow); either closes the open dialog.
 const clearDialogs = () => {

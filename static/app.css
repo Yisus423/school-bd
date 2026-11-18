@@ -34,6 +34,70 @@ main#main {
   white-space: nowrap;
 }
 
+/* The brand in the top bar goes back to the role hub. */
+a.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+a.brand h5 {
+  margin: 0;
+}
+
+a.brand img {
+  flex: none;
+}
+
+/* A student's own record stays a compact card on any viewport. */
+.record-table {
+  inline-size: auto;
+  min-inline-size: min(100%, 22rem);
+}
+
+.record-table th,
+.record-table td {
+  text-align: left;
+  white-space: nowrap;
+}
+
+.record-table th {
+  inline-size: 7rem;
+}
+
+/* The eye button shows or hides a password field's value. */
+.field {
+  position: relative;
+}
+
+button.reveal {
+  position: absolute;
+  inset-block-end: 0.4rem;
+  inset-inline-end: 0.4rem;
+  inline-size: 1.7rem;
+  block-size: 1.7rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+button.reveal > svg {
+  inline-size: 1.2rem;
+  block-size: 1.2rem;
+  display: block;
+}
+
+button.reveal:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .account-label {
   font-size: 0.875rem;
   white-space: nowrap;
@@ -103,6 +167,10 @@ main#main {
 
 table {
   inline-size: 100%;
+}
+
+table.record-table {
+  inline-size: auto;
 }
 
 table caption {

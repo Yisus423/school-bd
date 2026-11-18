@@ -156,9 +156,9 @@ def test_students_page_renders_seeded_rows_and_local_assets(
     assert "1815-12-10" in response.text
     assert "1906-12-09" in response.text
     assert "2 records" in response.text
-    assert 'src="/static/vendor/htmx.min.js"' in response.text
-    assert 'href="/static/vendor/beer.min.css"' in response.text
-    assert 'href="/static/app.css"' in response.text
+    assert re.search(r'src="/static/vendor/htmx\.min\.js\?v=[0-9a-f]{12}"', response.text)
+    assert re.search(r'href="/static/vendor/beer\.min\.css\?v=[0-9a-f]{12}"', response.text)
+    assert re.search(r'href="/static/app\.css\?v=[0-9a-f]{12}"', response.text)
     assert 'data-theme-source="' in response.text
     assert 'data-theme-fallback="' in response.text
     assert stored_students() == SEEDED_STUDENTS
@@ -1128,3 +1128,35 @@ def test_a_teacher_cannot_manage_accounts(roster_teacher_client) -> None:
     )
     assert roster_teacher_client.get("/accounts/teacher.one/password").status_code == 403
     assert database.get_user_by_username("intruso") is None
+
+
+# --- Usability round 1 (odd/tasks/role-panels.md L9): reveal passwords, go back ---
+
+
+def test_every_password_field_offers_a_visibility_toggle(
+    anonymous_client, accounts_client
+) -> None:
+    login = anonymous_client.get("/login")
+    assert login.text.count("data-reveal=") == 1
+
+    new_account = accounts_client.get("/accounts/new", headers=HTMX_HEADERS)
+    assert new_account.text.count("data-reveal=") == 2
+
+    reset = accounts_client.get("/accounts/admin.one/password", headers=HTMX_HEADERS)
+    assert reset.text.count("data-reveal=") == 2
+
+
+def test_signed_in_pages_link_the_brand_back_to_the_hub(
+    teacher_client, admin_client, student_client, anonymous_client
+) -> None:
+    for page in (
+        teacher_client.get("/students"),
+        admin_client.get("/accounts"),
+        student_client.get("/me"),
+    ):
+        assert page.status_code == 200
+        assert '<a class="brand" href="/"' in page.text
+
+    login = anonymous_client.get("/login")
+    assert login.status_code == 200
+    assert 'class="brand"' not in login.text
