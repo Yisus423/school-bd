@@ -2,6 +2,8 @@
 
 A small student-management app over SQLite: a SQLModel/Pydantic data model, a Typer
 CLI, and a server-rendered FastAPI web UI styled with BeerCSS and powered by HTMX.
+The web UI is not public: it takes accounts with three roles (`student`, `teacher`,
+`admin`), and a student who signs in sees only their own record.
 
 ## Setup
 
@@ -17,20 +19,22 @@ uv sync
 
 ## Architecture
 
-SQLite remains the database engine. Data is stored in `db.sqlite3`, in the `students`
-table with the `id`, `name`, `age`, `birthday`, and `course` columns, and both
+SQLite remains the database engine. Data is stored in `db.sqlite3`: the `students`
+table with the `id`, `name`, `age`, `birthday`, and `course` columns, the `users` table
+with the accounts that sign in, and the `sessions` table with the live sign-ins. Both
 interfaces share the same rules and the same persistence layer.
 
 | File | Responsibility |
 | --- | --- |
-| `models.py` | Defines the SQLModel `Student` table and the Pydantic-backed `StudentUpdate` schema. Shared constraints trim names and courses, reject blank names, restrict age to `1..130`, and require birthdays as real `YYYY-MM-DD` dates. |
-| `database.py` | Owns the SQLAlchemy/SQLModel engine, transactional sessions, and CRUD helpers. It contains no presentation logic. |
+| `models.py` | Defines the SQLModel tables (`Student`, `User`, `LoginSession`) and the Pydantic-backed `StudentUpdate` schema. Shared constraints trim names and courses, reject blank names, restrict age to `1..130`, require birthdays as real `YYYY-MM-DD` dates, normalize usernames, and keep the student link on student accounts only. |
+| `auth.py` | Owns passwords and session tokens, on the standard library alone: `hashlib.scrypt` for passwords, SHA-256 for the stored form of a session token. It has no dependency on the rest of the app. |
+| `database.py` | Owns the SQLAlchemy/SQLModel engine, transactional sessions, and the CRUD helpers for students, accounts and sessions. It contains no presentation logic. |
 | `cli.py` | Implements the public Typer commands with Rich output. It translates arguments and delegates all persistence to `database.py`; validation errors are rendered as readable `Error:` messages with exit code 1. |
 | `web.py` | Implements the FastAPI routes and renders the Jinja2 templates. Routes translate HTTP requests into calls on `database.py` and never duplicate validation or persistence. |
 | `settings.py` | Loads the school branding (name, logo, seed color) from `school.toml` and the `SCHOOL_*` environment variables. |
-| `templates/` | `students.html` (the page) plus `partials/` (table body, and the form, delete-confirmation and not-found dialogs). |
+| `templates/` | `students.html` (the admin page), `login.html`, `me.html`, `forbidden.html`, plus `partials/` (table body, one student's record, and the form, delete-confirmation and not-found dialogs). |
 | `static/` | `app.css`, `app.js`, `logo.svg`, and `vendor/` with the pinned browser libraries. No external CDN is used at runtime. |
-| `odd/tasks/` | The specification and task log for the web phase. |
+| `odd/tasks/` | The specification and task log for each phase. |
 | `design/student-admin/` | The three design directions; `01-dense-table.html` is the chosen and implemented one. |
 
 ## Web UI
@@ -46,8 +50,19 @@ server with reload enabled.
 
 | Route | Purpose |
 | --- | --- |
-| `GET /` | Redirects to `/students`. |
-| `GET /students` | Full page. `q` and `course_filter` search the list server-side. |
+| `GET /` | Sends each visitor to their own page: `/login`, `/students` or `/me`. |
+| `GET /login` | Sign-in form, unless this browser already has a session. |
+| `POST /login` | Opens a session for a matching account. It answers `303` on success and `401` with the form again when the username or the password does not match. |
+| `POST /logout` | Closes the session and clears the cookie. |
+| `GET /me` | The signed-in student's own record, read-only. |
+| `GET /branding` | Branding form, admin only: school name, logo file, seed color and palette source. |
+| `POST /branding` | Validates and saves the branding, then sends the whole app back to it. |
+| `GET /accounts` | Accounts table, admin only. |
+| `GET /accounts/new` | Add-account dialog, admin only. |
+| `POST /accounts` | Creates an account. |
+| `GET /accounts/{username}/password` | Set-a-new-password dialog for one account, admin only. |
+| `POST /accounts/{username}/password` | Sets a new password for one account. |
+| `GET /students` | Full page, teacher or admin only. `q` and `course_filter` search the list server-side. |
 | `GET /students/rows` | Table body fragment used by the search field and the course select. |
 | `GET /students/new` | Add-student dialog. |
 | `GET /students/{id}/edit` | Edit dialog prefilled with one student. |
@@ -55,6 +70,41 @@ server with reload enabled.
 | `POST /students` | Creates a student. |
 | `POST /students/{id}` | Updates a student. |
 | `POST /students/{id}/delete` | Deletes a student. |
+
+Every `/students` route needs a teacher or an admin: a request without a session gets
+`303` to `/login?next=<path>`, and a signed-in student gets `403` with a page that
+links back to their own record. `GET /me` is the mirror image: it needs a student, and
+a teacher or an admin gets the same `403`.
+
+### Accounts, roles and sessions
+
+An account is a username, a role and a password. The account table never stores the
+password: it stores a self-describing `scrypt` hash, so a future change of cost is
+tellable apart from an old hash. A `student` account names the student record it owns
+and can only be that record; a `teacher` or an `admin` account owns no record. For now
+`admin` holds no power that `teacher` does not already hold: it exists so the role can
+be created and signed in with, and the account-management screen stays a later phase.
+
+Sessions live in the database, not in the cookie. Signing in stores the SHA-256
+digest of a random token and hands the token itself to the browser in a cookie that is
+`HttpOnly` and `SameSite=Lax`; a copy of the database therefore contains no usable
+session, and signing out deletes the row, so a copied cookie stops working. A session
+lasts 8 hours, and an expired one is deleted the moment somebody presents it. The
+cookie is not marked `Secure` by default, because the local server speaks plain HTTP
+and the browser would never send it back: set `SCHOOL_SECURE_COOKIES=1` wherever the
+app is served over HTTPS.
+
+```bash
+uv run python cli.py users add --username ana.perez --role student --student-id 1
+uv run python cli.py users list
+uv run python cli.py users passwd --username ana.perez
+uv run python cli.py users remove --username ana.perez
+```
+
+Passwords are asked for twice and never echoed; `--password` exists for scripts. The
+minimum length is 8 characters. The login form carries no CSRF token: the session
+cookie is `SameSite=Lax`, which keeps a cross-site POST from carrying it, but the
+login form itself is not protected against login CSRF.
 
 ### Response contract
 
@@ -88,6 +138,13 @@ palette = "logo"     # source of the Material You palette: "logo" or "color"
 | `SCHOOL_LOGO` | The logo image, relative to `static/` (no `..`, no absolute paths). |
 | `SCHOOL_COLOR` | The seed color as `#RRGGBB`. |
 | `SCHOOL_PALETTE` | `logo` or `color`. |
+
+Three layers decide the branding, lowest to highest: `school.toml` in the repository,
+then `branding.toml` (what an admin saved from the branding panel, and git-ignored local
+state), then the `SCHOOL_*` environment variables. A deployment pins what the page may
+not change with an environment variable; without one, the panel wins. The panel
+validates the whole set before writing, and replaces the file atomically, so a rejected
+form leaves nothing behind and a crash mid-write keeps the previous branding.
 
 BeerCSS derives the entire Material You palette (primary, surfaces, containers, and
 their contrast pairs) from one source, so the whole UI follows the school's
@@ -165,6 +222,49 @@ uv run python cli.py delete 1
 uv run python cli.py delete 1 --yes
 ```
 
+### `users`
+
+Accounts are created and maintained from the CLI; the web screen for managing them is
+a later phase.
+
+#### `users add`
+
+Create an account that can sign in to the web UI. The password is asked for twice and
+never echoed, unless `--password` is given. `--role` is `student`, `teacher` or
+`admin`; a student account must name its record with `--student-id`, and other roles
+must not.
+
+```bash
+uv run python cli.py users add --username ana.perez --role teacher
+uv run python cli.py users add --username ada.lovelace --role student --student-id 1
+```
+
+#### `users list`
+
+List every account, with its role and the student record it owns, if any.
+
+```bash
+uv run python cli.py users list
+```
+
+#### `users passwd`
+
+Replace one account's password.
+
+```bash
+uv run python cli.py users passwd --username ana.perez
+```
+
+#### `users remove`
+
+Delete an account after confirmation. Use `--yes` to skip the prompt. Removing an
+account never removes the student record it owned.
+
+```bash
+uv run python cli.py users remove --username ana.perez
+uv run python cli.py users remove --username ana.perez --yes
+```
+
 ## Tests
 
 Run the complete test suite with:
@@ -177,7 +277,7 @@ Run one area at a time:
 
 ```bash
 uv run pytest tests/test_models.py tests/test_database.py tests/test_cli.py
-uv run pytest tests/test_web.py tests/test_settings.py
+uv run pytest tests/test_auth.py tests/test_web.py tests/test_settings.py
 ```
 
 All database, CLI and web tests use isolated temporary SQLite files, so they never

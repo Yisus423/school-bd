@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Not available · {{ settings.name }}</title>
+  {# Root-relative asset paths: they survive proxies and keep the page offline. #}
+  <link rel="stylesheet" href="/static/vendor/beer.min.css">
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="icon" href="/static/{{ settings.logo }}">
+</head>
+<body data-theme-source="{{ settings.theme_source }}" data-theme-fallback="{{ settings.color }}">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header>
+    <nav>
+      <img class="circle" src="/static/{{ settings.logo }}"
+           alt="{{ settings.name }} logo" width="40" height="40">
+      <h5 class="max">{{ settings.name }}</h5>
+      <span class="chip">{{ account.username }}</span>
+      <form method="post" action="/logout">
+        <button class="transparent" type="submit">Sign out</button>
+      </form>
+    </nav>
+  </header>
+
+  <main id="main" class="responsive max">
+    <article class="border round">
+      <h5>This page is not available to you</h5>
+      <p>Your account cannot open this page.</p>
+      <nav>
+        <a class="button" href="{{ home }}">Go to my page</a>
+      </nav>
+    </article>
+  </main>
+
+  <footer>
+    <nav>{{ settings.name }}</nav>
+  </footer>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+{% from 'partials/reveal.html' import reveal_button %}
+{# Add-account dialog. Rendered standalone for HTMX and inside the page without JS. #}
+<dialog id="account-form" aria-labelledby="account-form-title"{% if dialog.open_dialog %} open{% endif %}>
+  <h5 id="account-form-title">Add account</h5>
+  <form method="post" action="/accounts" hx-post="/accounts"
+        hx-target="#accounts-rows" hx-swap="outerHTML">
+    {% if dialog.errors %}
+    <div class="error-container padding round" role="alert">
+      <strong>Please fix these values:</strong>
+      <ul>
+        {% for field, message in dialog.errors.items() %}
+        <li>{{ field }}: {{ message }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <div class="field label border{% if dialog.errors.username %} invalid{% endif %}">
+      <input id="account-username" name="username" type="text" value="{{ dialog.fields.username }}"
+             autocomplete="off" data-autofocus required>
+      <label for="account-username">Username</label>
+      {% if dialog.errors.username %}<span class="error">{{ dialog.errors.username }}</span>{% endif %}
+    </div>
+
+    <div class="field label border{% if dialog.errors.role %} invalid{% endif %}">
+      <select id="account-role" name="role" data-account-role required>
+        <option value="student"{% if dialog.fields.role == 'student' %} selected{% endif %}>student</option>
+        <option value="teacher"{% if dialog.fields.role == 'teacher' %} selected{% endif %}>teacher</option>
+        <option value="admin"{% if dialog.fields.role == 'admin' %} selected{% endif %}>admin</option>
+      </select>
+      <label for="account-role">Role</label>
+      {% if dialog.errors.role %}<span class="error">{{ dialog.errors.role }}</span>{% endif %}
+    </div>
+
+    <div class="field label border{% if dialog.errors.student_id %} invalid{% endif %}" data-account-student-field>
+      <select id="account-student" name="student_id">
+        <option value="">—</option>
+        {% for student in dialog.students %}
+        <option value="{{ student.id }}"{% if dialog.fields.student_id == student.id|string %} selected{% endif %}>{{ student.name }} ({{ student.id }})</option>
+        {% endfor %}
+      </select>
+      <label for="account-student">Student record (student accounts only)</label>
+      {% if dialog.errors.student_id %}<span class="error">{{ dialog.errors.student_id }}</span>{% endif %}
+    </div>
+
+    <div class="field label border has-reveal{% if dialog.errors.password %} invalid{% endif %}">
+      <input id="account-password" name="password" type="password"
+             autocomplete="new-password" required>
+      <label for="account-password">Password</label>
+      {{ reveal_button('account-password') }}
+      {% if dialog.errors.password %}<span class="error">{{ dialog.errors.password }}</span>{% endif %}
+    </div>
+
+    <div class="field label border has-reveal{% if dialog.errors.password %} invalid{% endif %}">
+      <input id="account-confirm" name="confirm" type="password"
+             autocomplete="new-password" required>
+      <label for="account-confirm">Repeat the password</label>
+      {{ reveal_button('account-confirm') }}
+    </div>
+
+    <nav>
+      <button type="button" class="transparent" data-close>Cancel</button>
+      <button type="submit">Create account</button>
+    </nav>
+  </form>
+</dialog>
+<script>
+  {# The student record only applies to student accounts; inline, so it works in the
+     swapped fragment and in the full page, with or without JavaScript. #}
+  (function () {
+    var role = document.getElementById("account-role");
+    var wrap = document.querySelector("[data-account-student-field]");
+    if (!role || !wrap) return;
+    var sync = function () { wrap.style.display = role.value === "student" ? "" : "none"; };
+    role.addEventListener("change", sync);
+    sync();
+  })();
+</script>

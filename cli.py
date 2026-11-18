@@ -1,8 +1,10 @@
-"""Student CLI over database.py (Typer + Rich).
+"""Student and account CLI over database.py (Typer + Rich).
 
 This module only translates command-line arguments, delegates persistence to
 ``database.py``, and renders results. Validation belongs to the Pydantic and
-SQLModel schemas in ``models.py``.
+SQLModel schemas in ``models.py``. Passwords are only ever hashed: ``--password``
+exists for scripts and tests, and every command prompts for it hidden when the
+option is omitted.
 """
 
 from typing import Annotated
@@ -17,7 +19,7 @@ from typer._click.exceptions import UsageError
 from typer.core import TyperGroup
 
 import database as db
-from models import Student
+from models import Role, Student
 
 
 class ErrorAwareGroup(TyperGroup):
@@ -44,10 +46,16 @@ class ErrorAwareGroup(TyperGroup):
 
 
 app = typer.Typer(
-    help="Student CRUD over SQLite.",
+    help="Students and accounts over SQLite.",
     no_args_is_help=True,
     cls=ErrorAwareGroup,
 )
+users_app = typer.Typer(
+    help="Accounts that can sign in to the web UI.",
+    no_args_is_help=True,
+    cls=ErrorAwareGroup,
+)
+app.add_typer(users_app, name="users")
 console = Console()
 
 
@@ -61,8 +69,9 @@ def report_validation_error(error: ValidationError) -> None:
     """Render Pydantic's validation details without a traceback."""
     details = []
     for item in error.errors():
+        message = item["msg"].removeprefix("Value error, ")
         location = ".".join(str(part) for part in item["loc"])
-        details.append(f"{location}: {item['msg']}")
+        details.append(f"{location}: {message}" if location else message)
     fail("invalid input: " + "; ".join(details))
 
 
@@ -179,6 +188,104 @@ def delete_student(
     if not db.delete_student(student_id):
         fail(f"no student with id {student_id}")
     console.print(f"[bold green]Student {student_id} deleted.[/]")
+
+
+def ask_password(password: str | None) -> str:
+    """Return the given password, or ask for it twice without echoing it."""
+    if password is not None:
+        return password
+    return typer.prompt("Password", hide_input=True, confirmation_prompt=True)
+
+
+@users_app.command("add")
+def add_user(
+    username: Annotated[
+        str, typer.Option("--username", "-u", prompt=True, help="Login name")
+    ],
+    role: Annotated[
+        Role, typer.Option("--role", "-r", prompt=True, help="Account role")
+    ],
+    student_id: Annotated[
+        int | None,
+        typer.Option("--student-id", "-s", help="Student record a student account owns"),
+    ] = None,
+    password: Annotated[
+        str | None,
+        typer.Option("--password", "-p", help="Password (asked for when omitted)"),
+    ] = None,
+) -> None:
+    """Create an account that can sign in to the web UI."""
+    try:
+        user = db.add_user(username, ask_password(password), role, student_id)
+    except ValidationError as error:
+        report_validation_error(error)
+    except ValueError as error:
+        fail(str(error))
+    console.print(f"[bold green]Account {user.username} created.[/]")
+
+
+@users_app.command("list")
+def list_users() -> None:
+    """List every account."""
+    accounts = db.list_users()
+    if not accounts:
+        console.print("[yellow]No accounts found.[/]")
+        return
+
+    table = Table(title="Accounts", box=ROUNDED, header_style="bold cyan")
+    for column in ("id", "username", "role", "student"):
+        table.add_column(
+            column.capitalize(), justify="right" if column == "id" else "left"
+        )
+    for account in accounts:
+        table.add_row(
+            str(account.id),
+            account.username,
+            account.role.value,
+            "" if account.student_id is None else str(account.student_id),
+        )
+    console.print(table)
+
+
+@users_app.command("passwd")
+def change_password(
+    username: Annotated[
+        str, typer.Option("--username", "-u", prompt=True, help="Login name")
+    ],
+    password: Annotated[
+        str | None,
+        typer.Option("--password", "-p", help="Password (asked for when omitted)"),
+    ] = None,
+) -> None:
+    """Set a new password for one account."""
+    try:
+        updated = db.set_user_password(username, ask_password(password))
+    except ValueError as error:
+        fail(str(error))
+    if not updated:
+        fail(f"no account with username '{username}'")
+    console.print(f"[bold green]Password updated for {username}.[/]")
+
+
+@users_app.command("remove")
+def remove_user(
+    username: Annotated[
+        str, typer.Option("--username", "-u", prompt=True, help="Login name")
+    ],
+    yes: Annotated[
+        bool, typer.Option("--yes", "-y", help="Skip the confirmation")
+    ] = False,
+) -> None:
+    """Delete one account. It does not delete the student record it owns."""
+    if db.get_user_by_username(username) is None:
+        fail(f"no account with username '{username}'")
+    if not yes and not typer.confirm(f"Delete account {username}?", default=False):
+        console.print("[yellow]Cancelled.[/]")
+        raise typer.Exit()
+
+    if not db.delete_user(username):
+        fail(f"no account with username '{username}'")
+    console.print(f"[bold green]Account {username} removed.[/]")
 
 
 if __name__ == "__main__":

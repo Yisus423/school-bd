@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "chosen": "03-role-hub.html",
+  "handoffs": {
+    "03-role-hub.html": {
+      "status": "implemented",
+      "queued": false,
+      "sentAt": "2026-11-17T04:24:24.399Z",
+      "startedAt": "2026-11-17T04:36:02.068Z",
+      "implementedAt": "2026-11-17T06:19:30.987Z",
+      "feature": "odd/tasks/role-panels.md",
+      "note": "Implemented: / renders the role hub (teacher: one Students card; admin: three cards; student: /me), and the account name is a plain label in every top bar. 125 tests green.",
+      "previewUrl": "http://127.0.0.1:8000/"
+    }
+  }
+}

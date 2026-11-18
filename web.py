@@ -14,8 +14,12 @@ Response contract
   page that renders the dialog with errors on ``422``, so the app still works
   without JavaScript.
 * A missing student answers ``404`` with a dialog fragment for HTMX requests.
+* A page that needs an account answers ``303`` to ``/login`` when the request has no
+  session at all, and ``403`` when the role that signed in may not open it.
 """
 
+import hashlib
+import os
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Annotated
@@ -27,21 +31,204 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 
 import database as db
-from models import Student
+import settings as settings_module
+from models import Role, Student, User
 from settings import SchoolSettings, get_school_settings
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+def asset_version(name: str) -> str:
+    """Version a static asset by its content, so browsers never serve it stale."""
+    path = BASE_DIR / "static" / name
+    if not path.is_file():
+        return "0"
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+
+
+templates.env.globals["asset_version"] = asset_version
 
 app = FastAPI(title="School DB", description="Student CRUD web UI")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates.env.globals["available_courses"] = lambda: available_courses(db.get_students())
 
 STUDENT_CHANGED = '{"student-changed": true}'
+DATA_CHANGED = '{"data-changed": true}'
+ACCOUNT_FIELDS = {"username", "role", "student_id", "password"}
 Settings = Annotated[SchoolSettings, Depends(get_school_settings)]
 
 
 SQLITE_INTEGER_MAX = 2**63 - 1
+
+SESSION_COOKIE = "school_session"
+SESSION_MAX_AGE = int(db.SESSION_TTL.total_seconds())
+STAFF_ROLES = (Role.teacher, Role.admin)
+STAFF_HOME = "/"
+STUDENT_HOME = "/me"
+LOGIN_PATH = "/login"
+# The cookie is not marked Secure by default, because the local development server
+# speaks plain HTTP and a Secure cookie would never come back. Set
+# SCHOOL_SECURE_COOKIES=1 wherever the app is served over HTTPS.
+SECURE_COOKIES = os.environ.get("SCHOOL_SECURE_COOKIES", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+
+
+class SignInRequired(Exception):
+    """Raised when a page needs a session and the request carries none."""
+
+    def __init__(self, wanted: str) -> None:
+        super().__init__(wanted)
+        self.wanted = wanted
+
+
+class AccessDenied(Exception):
+    """Raised when the signed-in account may not open the page it asked for."""
+
+    def __init__(self, account: User) -> None:
+        super().__init__(account.username)
+        self.account = account
+
+
+def wanted_path(request: Request) -> str:
+    """Return where this request was going, to come back after signing in."""
+    query = request.url.query
+    return f"{request.url.path}?{query}" if query else request.url.path
+
+
+def local_path(value: str, fallback: str = "") -> str:
+    """Keep a redirect on this site, whatever a link or a form asked for."""
+    candidate = value.strip()
+    if candidate.startswith("/") and not candidate.startswith("//"):
+        return candidate
+    return fallback
+
+
+def home_for(account: User | None) -> str:
+    """Return the page an account belongs on."""
+    if account is None:
+        return LOGIN_PATH
+    return STAFF_HOME if account.role in STAFF_ROLES else STUDENT_HOME
+
+
+def available_logos() -> list[str]:
+    """List the image files under static/, for the branding form's suggestions."""
+    extensions = {".svg", ".png", ".jpg", ".jpeg", ".webp", ".gif"}
+    static_dir = BASE_DIR / "static"
+    return sorted(
+        entry.name
+        for entry in static_dir.iterdir()
+        if entry.is_file() and entry.suffix.lower() in extensions
+    )
+
+
+def account_of(request: Request) -> User | None:
+    """Return the account this request already resolved, if any."""
+    return getattr(request.state, "account", None)
+
+
+def current_account(request: Request) -> User | None:
+    """Resolve the session cookie, when there is one, into an account."""
+    token = request.cookies.get(SESSION_COOKIE, "")
+    account = db.session_user(token) if token else None
+    request.state.account = account
+    return account
+
+
+Account = Annotated[User | None, Depends(current_account)]
+
+
+def require_role(request: Request, account: Account, *roles: Role) -> User:
+    """Let the listed roles through, and answer the rest according to who they are."""
+    if account is None:
+        raise SignInRequired(wanted_path(request))
+    if account.role not in roles:
+        raise AccessDenied(account)
+    request.state.account = account
+    return account
+
+
+def require_staff(request: Request, account: Account) -> User:
+    """Guard for the student administration pages."""
+    return require_role(request, account, *STAFF_ROLES)
+
+
+def require_student(request: Request, account: Account) -> User:
+    """Guard for the page that shows one student their own record."""
+    return require_role(request, account, Role.student)
+
+
+def require_admin(request: Request, account: Account) -> User:
+    """Guard for the account and branding management pages."""
+    return require_role(request, account, Role.admin)
+
+
+STAFF_ONLY = [Depends(require_staff)]
+ADMIN_ONLY = [Depends(require_admin)]
+StudentAccount = Annotated[User, Depends(require_student)]
+AdminAccount = Annotated[User, Depends(require_admin)]
+
+
+@app.exception_handler(SignInRequired)
+def answer_sign_in_required(request: Request, error: SignInRequired) -> RedirectResponse:
+    """Send the visitor to the login page, remembering where they were going."""
+    return RedirectResponse(
+        f"{LOGIN_PATH}?next={local_path(error.wanted, LOGIN_PATH)}", status_code=303
+    )
+
+
+@app.exception_handler(AccessDenied)
+def answer_access_denied(request: Request, error: AccessDenied) -> HTMLResponse:
+    """Explain the refusal without describing what the other pages contain."""
+    return templates.TemplateResponse(
+        request,
+        "forbidden.html",
+        {
+            "settings": get_school_settings(),
+            "account": error.account,
+            "home": home_for(error.account),
+        },
+        status_code=403,
+    )
+
+
+def session_cookie(response: Response, token: str) -> None:
+    """Attach the session cookie with the flags this deployment can hold."""
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=SESSION_MAX_AGE,
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=SECURE_COOKIES,
+    )
+
+
+def login_response(
+    request: Request,
+    settings: SchoolSettings,
+    next_path: str,
+    username: str = "",
+    failed: bool = False,
+    status_code: int = 200,
+) -> HTMLResponse:
+    """Render the login page, with the typed username and the error when needed."""
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {
+            "settings": settings,
+            "next": next_path,
+            "username": username,
+            "failed": failed,
+        },
+        status_code=status_code,
+    )
 
 
 def is_htmx(request: Request) -> bool:
@@ -89,6 +276,19 @@ def field_errors(error: ValidationError) -> dict[str, str]:
     return messages
 
 
+def account_error_field(message: str) -> str:
+    """Route one account rejection to the form field it belongs to.
+
+    The validation rules themselves live in the account schema; this only decides
+    which field shows the message when the schema reports it for the whole model.
+    """
+    if "student record" in message:
+        return "student_id"
+    if "password" in message:
+        return "password"
+    return "username"
+
+
 def rows_response(
     request: Request,
     students: list[Student],
@@ -122,6 +322,7 @@ def page_response(
 ) -> HTMLResponse:
     """Render the full students page, optionally with an already open dialog."""
     every_student = db.get_students()
+    account = account_of(request)
     return templates.TemplateResponse(
         request,
         "students.html",
@@ -131,6 +332,8 @@ def page_response(
             "q": query,
             "course_filter": course,
             "dialog": dialog,
+            "account": account,
+            "home": home_for(account),
         },
         status_code=status_code,
     )
@@ -228,6 +431,109 @@ def invalid_form_response(
     )
 
 
+def account_rows_response(request: Request, oob: bool) -> HTMLResponse:
+    """Render the accounts table body fragment, plus the out-of-band counter."""
+    return templates.TemplateResponse(
+        request,
+        "partials/account-rows.html",
+        {
+            "accounts": db.list_users(),
+            "student_names": {
+                student.id: f"{student.name} ({student.id})"
+                for student in db.get_students()
+            },
+            "oob": oob,
+        },
+    )
+
+
+def accounts_page_response(
+    request: Request,
+    settings: SchoolSettings,
+    signed_in: User,
+    dialog: dict | None = None,
+    status_code: int = 200,
+) -> HTMLResponse:
+    """Render the full accounts page, optionally with an already open dialog."""
+    return templates.TemplateResponse(
+        request,
+        "accounts.html",
+        {
+            "settings": settings,
+            "account": signed_in,
+            "accounts": db.list_users(),
+            "student_names": {
+                student.id: f"{student.name} ({student.id})"
+                for student in db.get_students()
+            },
+            "dialog": dialog,
+        },
+        status_code=status_code,
+    )
+
+
+def account_dialog(
+    values: dict[str, str],
+    errors: dict[str, str],
+    open_dialog: bool = False,
+) -> dict:
+    """Describe the add-account dialog so the page and HTMX can render it."""
+    # The key is `fields`, not `values`: Jinja would resolve `dialog.values` to
+    # the dict method instead of the mapping.
+    return {
+        "template": "partials/account-form.html",
+        "fields": values,
+        "errors": errors,
+        "students": db.get_students(),
+        "open_dialog": open_dialog,
+    }
+
+
+def account_password_dialog(
+    username: str,
+    errors: dict[str, str],
+    open_dialog: bool = False,
+) -> dict:
+    """Describe the set-a-new-password dialog for one account."""
+    return {
+        "template": "partials/account-password.html",
+        "username": username,
+        "errors": errors,
+        "open_dialog": open_dialog,
+    }
+
+
+def account_fragment_response(
+    request: Request,
+    dialog: dict,
+    status_code: int = 200,
+) -> HTMLResponse:
+    """Answer an HTMX account dialog, retargeted into the dialog host."""
+    response = dialog_response(request, dialog, status_code=status_code)
+    response.headers["HX-Retarget"] = "#dialog-host"
+    response.headers["HX-Reswap"] = "innerHTML"
+    return response
+
+
+def account_changed_response(request: Request) -> Response:
+    """Answer an account write: an accounts fragment with a trigger, or a redirect."""
+    if is_htmx(request):
+        response = account_rows_response(request, oob=True)
+        response.headers["HX-Trigger"] = DATA_CHANGED
+        return response
+    # Post/Redirect/Get, so a refresh never repeats the write.
+    return RedirectResponse("/accounts", status_code=303)
+
+
+def missing_account_response(request: Request) -> Response:
+    """Answer an account action that names an account which does not exist."""
+    if is_htmx(request):
+        return account_fragment_response(
+            request, {"template": "partials/account-missing.html"}, status_code=404
+        )
+    return RedirectResponse("/accounts", status_code=303)
+
+
 def missing_student_response(
     request: Request,
     settings: SchoolSettings,
@@ -246,13 +552,65 @@ def missing_student_response(
     return redirect_to_students(query, course)
 
 
-@app.get("/")
-def index() -> RedirectResponse:
-    """Send the browser to the students list."""
-    return RedirectResponse("/students", status_code=303)
+@app.get("/", response_class=HTMLResponse)
+def index(request: Request, settings: Settings, account: Account) -> Response:
+    """Send each visitor to their own place, or open the staff role hub."""
+    if account is None:
+        return RedirectResponse(LOGIN_PATH, status_code=303)
+    if account.role is Role.student:
+        return RedirectResponse(STUDENT_HOME, status_code=303)
+    return templates.TemplateResponse(
+        request,
+        "hub.html",
+        {"settings": settings, "account": account},
+        status_code=200,
+    )
 
 
-@app.get("/students", response_class=HTMLResponse)
+@app.get("/login", response_class=HTMLResponse)
+def login_page(
+    request: Request,
+    settings: Settings,
+    account: Account,
+    next: str = "",
+) -> Response:
+    """Ask for a username and a password, unless this browser already signed in."""
+    if account is not None:
+        return RedirectResponse(home_for(account), status_code=303)
+    return login_response(request, settings, local_path(next))
+
+
+@app.post("/login", response_class=HTMLResponse)
+def sign_in(
+    request: Request,
+    settings: Settings,
+    username: Annotated[str, Form()] = "",
+    password: Annotated[str, Form()] = "",
+    next: Annotated[str, Form()] = "",
+) -> Response:
+    """Open a session for a matching account, or ask again without saying why."""
+    account = db.authenticate(username, password)
+    target = local_path(next)
+    if account is None:
+        return login_response(
+            request, settings, target, username=username, failed=True, status_code=401
+        )
+    db.purge_expired_sessions()
+    response = RedirectResponse(target or home_for(account), status_code=303)
+    session_cookie(response, db.create_session(account.id))
+    return response
+
+
+@app.post("/logout")
+def sign_out(request: Request) -> RedirectResponse:
+    """Close the session behind this browser and forget its cookie."""
+    db.delete_session(request.cookies.get(SESSION_COOKIE, ""))
+    response = RedirectResponse(LOGIN_PATH, status_code=303)
+    response.delete_cookie(SESSION_COOKIE, path="/")
+    return response
+
+
+@app.get("/students", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def students_page(
     request: Request,
     settings: Settings,
@@ -263,7 +621,7 @@ def students_page(
     return page_response(request, settings, q, course_filter)
 
 
-@app.get("/students/rows", response_class=HTMLResponse)
+@app.get("/students/rows", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def student_rows(request: Request, q: str = "", course_filter: str = "") -> HTMLResponse:
     """Table body fragment used by the search and course filters."""
     return rows_response(
@@ -271,7 +629,7 @@ def student_rows(request: Request, q: str = "", course_filter: str = "") -> HTML
     )
 
 
-@app.get("/students/new", response_class=HTMLResponse)
+@app.get("/students/new", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def new_student_dialog(
     request: Request,
     settings: Settings,
@@ -292,7 +650,7 @@ def new_student_dialog(
     return page_response(request, settings, q, course_filter, dialog=dialog)
 
 
-@app.get("/students/{student_id}/edit", response_class=HTMLResponse)
+@app.get("/students/{student_id}/edit", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def edit_student_dialog(
     request: Request,
     student_id: int,
@@ -326,7 +684,7 @@ def edit_student_dialog(
     return page_response(request, settings, q, course_filter, dialog=dialog)
 
 
-@app.get("/students/{student_id}/delete", response_class=HTMLResponse)
+@app.get("/students/{student_id}/delete", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def delete_student_dialog(
     request: Request,
     student_id: int,
@@ -352,7 +710,7 @@ def delete_student_dialog(
     return page_response(request, settings, q, course_filter, dialog=dialog)
 
 
-@app.post("/students", response_class=HTMLResponse)
+@app.post("/students", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def create_student(
     request: Request,
     settings: Settings,
@@ -374,7 +732,7 @@ def create_student(
     return write_response(request, settings, q, course_filter)
 
 
-@app.post("/students/{student_id}", response_class=HTMLResponse)
+@app.post("/students/{student_id}", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def update_student(
     request: Request,
     student_id: int,
@@ -403,7 +761,7 @@ def update_student(
     return write_response(request, settings, q, course_filter)
 
 
-@app.post("/students/{student_id}/delete", response_class=HTMLResponse)
+@app.post("/students/{student_id}/delete", response_class=HTMLResponse, dependencies=STAFF_ONLY)
 def remove_student(
     request: Request,
     student_id: int,
@@ -419,7 +777,214 @@ def remove_student(
     return write_response(request, settings, q, course_filter)
 
 
+@app.get("/accounts", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def accounts_page(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+) -> HTMLResponse:
+    """Full accounts page with the table rendered server-side."""
+    return accounts_page_response(request, settings, account)
+
+
+@app.get("/accounts/new", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def add_account_dialog(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+) -> Response:
+    """Empty add-account dialog: a fragment for HTMX, an open page otherwise."""
+    dialog = account_dialog(
+        {"username": "", "role": "student", "student_id": ""},
+        {},
+        open_dialog=not is_htmx(request),
+    )
+    if is_htmx(request):
+        return dialog_response(request, dialog)
+    return accounts_page_response(request, settings, account, dialog=dialog)
+
+
+@app.post("/accounts", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def create_account(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+    username: Annotated[str, Form()] = "",
+    role: Annotated[str, Form()] = "",
+    student_id: Annotated[str, Form()] = "",
+    password: Annotated[str, Form()] = "",
+    confirm: Annotated[str, Form()] = "",
+) -> Response:
+    """Validate and create one account."""
+    values = {"username": username, "role": role, "student_id": student_id}
+    errors: dict[str, str] = {}
+    if password != confirm:
+        errors["password"] = "The passwords do not match."
+    try:
+        student_key: int | None = int(student_id) if student_id else None
+    except ValueError:
+        errors["student_id"] = "Choose a student record from the list."
+        student_key = None
+    if not errors:
+        try:
+            db.add_user(username, password, role, student_key)
+        except ValidationError as error:
+            errors = {}
+            for item in error.errors():
+                message = item["msg"].removeprefix("Value error, ")
+                field = str(item["loc"][0]) if item["loc"] else ""
+                if field not in ACCOUNT_FIELDS:
+                    field = account_error_field(message)
+                errors.setdefault(field, message)
+        except ValueError as error:
+            errors = {account_error_field(str(error)): str(error)}
+    if errors:
+        dialog = account_dialog(values, errors, open_dialog=not is_htmx(request))
+        if is_htmx(request):
+            return account_fragment_response(request, dialog, status_code=422)
+        return accounts_page_response(
+            request, settings, account, dialog=dialog, status_code=422
+        )
+    return account_changed_response(request)
+
+
+@app.get("/accounts/{username}/password", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def reset_password_dialog(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+    username: str,
+) -> Response:
+    """Set-a-new-password dialog for one account."""
+    if db.get_user_by_username(username) is None:
+        return missing_account_response(request)
+    dialog = account_password_dialog(username, {}, open_dialog=not is_htmx(request))
+    if is_htmx(request):
+        return dialog_response(request, dialog)
+    return accounts_page_response(request, settings, account, dialog=dialog)
+
+
+@app.post("/accounts/{username}/password", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def set_account_password(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+    username: str,
+    password: Annotated[str, Form()] = "",
+    confirm: Annotated[str, Form()] = "",
+) -> Response:
+    """Validate and apply a new password for one account."""
+    if db.get_user_by_username(username) is None:
+        return missing_account_response(request)
+    errors: dict[str, str] = {}
+    if password != confirm:
+        errors["password"] = "The passwords do not match."
+    if not errors:
+        try:
+            updated = db.set_user_password(username, password)
+        except ValueError as error:
+            errors = {"password": str(error)}
+    if errors:
+        dialog = account_password_dialog(username, errors, open_dialog=not is_htmx(request))
+        if is_htmx(request):
+            return account_fragment_response(request, dialog, status_code=422)
+        return accounts_page_response(
+            request, settings, account, dialog=dialog, status_code=422
+        )
+    if not updated:
+        return missing_account_response(request)
+    return account_changed_response(request)
+
+
+@app.get("/me", response_class=HTMLResponse)
+def my_record(
+    request: Request,
+    settings: Settings,
+    account: StudentAccount,
+) -> HTMLResponse:
+    """Show one student their own record, and nothing else."""
+    student = db.get_student(account.student_id) if account.student_id else None
+    return templates.TemplateResponse(
+        request,
+        "me.html",
+        {
+            "settings": settings,
+            "account": account,
+            "student": student,
+            "home": home_for(account),
+        },
+        status_code=200 if student is not None else 404,
+    )
+
+
+@app.get("/branding", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def branding_page(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+) -> HTMLResponse:
+    """Branding form: the school name, the logo and the palette source."""
+    return templates.TemplateResponse(
+        request,
+        "branding.html",
+        {
+            "settings": settings,
+            "account": account,
+            "home": home_for(account),
+            "values": settings.model_dump(),
+            "logos": available_logos(),
+            "errors": {},
+            "saved": request.query_params.get("saved") == "1",
+        },
+    )
+
+
+@app.post("/branding", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def save_branding(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+    name: Annotated[str, Form()] = "",
+    logo: Annotated[str, Form()] = "",
+    color: Annotated[str, Form()] = "",
+    palette: Annotated[str, Form()] = "",
+) -> Response:
+    """Validate the branding form, save it, or answer the same page with errors."""
+    values = {"name": name, "logo": logo, "color": color, "palette": palette}
+    errors: dict[str, str] = {}
+    saved = settings
+    try:
+        saved = settings_module.save_school_settings(values)
+    except ValidationError as error:
+        for item in error.errors():
+            field = str(item["loc"][0]) if item["loc"] else "name"
+            errors.setdefault(field, item["msg"].removeprefix("Value error, "))
+    except ValueError as error:
+        errors["name"] = str(error)
+
+    if not errors and not is_htmx(request):
+        # Post/Redirect/Get, so a refresh never repeats the write, as the other
+        # forms in this app do.
+        return RedirectResponse("/branding?saved=1", status_code=303)
+
+    response = templates.TemplateResponse(
+        request,
+        "branding.html",
+        {
+            "settings": saved if not errors else settings,
+            "account": account,
+            "home": home_for(account),
+            "values": values,
+            "errors": errors,
+            "saved": not errors,
+        },
+        status_code=422 if errors else 200,
+    )
+    if is_htmx(request) and not errors:
+        response.headers["HX-Trigger"] = DATA_CHANGED
+    return response
+
+
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("web:app", reload=True)

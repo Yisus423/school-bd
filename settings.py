@@ -8,6 +8,7 @@ You palette used by every page from either the logo image or the seed color.
 
 import os
 import re
+import tempfile
 import tomllib
 from collections.abc import Mapping
 from functools import lru_cache
@@ -18,6 +19,9 @@ from pydantic import BaseModel, field_validator
 
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "school.toml"
+# Branding saved from the admin panel lives here, so the file school.toml ships with
+# (and the project's git history) stays a readable default.
+SAVED_PATH = BASE_DIR / "branding.toml"
 
 ENVIRONMENT_VARIABLES = {
     "name": "SCHOOL_NAME",
@@ -86,17 +90,25 @@ class SchoolSettings(BaseModel):
 def load_school_settings(
     config_path: Path | None = None,
     environ: Mapping[str, str] | None = None,
+    saved_path: Path | None = None,
 ) -> SchoolSettings:
-    """Read ``school.toml`` when it exists, then apply environment overrides."""
+    """Read the branding files that exist, then apply environment overrides.
+
+    Precedence, lowest to highest: ``school.toml``, then ``branding.toml`` (what the
+    admin saved from the web), then the ``SCHOOL_*`` environment variables, which a
+    deployment can use to pin a value the page must not change.
+    """
     path = CONFIG_PATH if config_path is None else config_path
     values: dict[str, Any] = {}
 
-    if path.is_file():
-        with path.open("rb") as handle:
+    for source in (path, SAVED_PATH if saved_path is None else saved_path):
+        if not source.is_file():
+            continue
+        with source.open("rb") as handle:
             document = tomllib.load(handle)
-        table = document.get("school", {})
+        table = document.get("school")
         if not isinstance(table, dict):
-            raise ValueError("school.toml must define a [school] table")
+            raise ValueError(f"{source.name} must define a [school] table")
         values.update(table)
 
     environment = os.environ if environ is None else environ
@@ -106,6 +118,38 @@ def load_school_settings(
             values[field_name] = override
 
     return SchoolSettings.model_validate(values)
+
+
+def save_school_settings(
+    values: Mapping[str, Any],
+    saved_path: Path | None = None,
+) -> SchoolSettings:
+    """Validate branding, then write it where the next load will find it.
+
+    The values are validated before anything touches the disk, so a rejected form
+    never leaves a half-written file behind. The file is replaced atomically: a crash
+    mid-write keeps the previous branding instead of a truncated one.
+    """
+    path = SAVED_PATH if saved_path is None else saved_path
+    current = load_school_settings()
+    candidate = SchoolSettings.model_validate({**current.model_dump(), **values})
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(dir=str(path.parent), prefix=".branding-", suffix=".toml")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write("[school]\n")
+            for field_name in ("name", "logo", "color", "palette"):
+                handle.write(f'{field_name} = "{getattr(candidate, field_name)}"\n')
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except BaseException:
+        Path(temporary).unlink(missing_ok=True)
+        raise
+
+    get_school_settings.cache_clear()
+    return get_school_settings()
 
 
 @lru_cache(maxsize=1)

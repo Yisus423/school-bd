@@ -34,8 +34,192 @@ main#main {
   white-space: nowrap;
 }
 
+/* The brand in the top bar goes back to the role hub. */
+a.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+a.brand h5 {
+  margin: 0;
+}
+
+a.brand img {
+  flex: none;
+}
+
+/* A student's own record stays a compact card on any viewport. */
+.record-table {
+  inline-size: auto;
+  min-inline-size: min(100%, 22rem);
+}
+
+.record-table th,
+.record-table td {
+  text-align: left;
+  white-space: nowrap;
+}
+
+.record-table th {
+  inline-size: 7rem;
+}
+
+/* The eye button shows or hides a password field's value. */
+.field {
+  position: relative;
+}
+
+/* BeerCSS floats a field label onto the input's border while the input is empty
+   (:placeholder-shown). A field that carries an inline control tells the input to
+   reserve room on the right, so the typed value never slides under the button. */
+.field.has-reveal > input,
+.field.has-reveal > input[type="password"] {
+  padding-inline-end: 2.75rem;
+}
+
+button.reveal {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 0.5rem;
+  translate: 0 -50%;
+  inline-size: 2rem;
+  block-size: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+button.reveal:hover {
+  background-color: var(--active);
+}
+
+/* Both icons ship in the markup and CSS picks one: BeerCSS's `svg { display: block }`
+   outranks the `hidden` attribute, so hiding relies on a class of ours. */
+button.reveal > svg {
+  inline-size: 1.15rem;
+  block-size: 1.15rem;
+  display: block;
+  pointer-events: none;
+}
+
+button.reveal .eye-off,
+button.reveal[aria-pressed="true"] .eye {
+  display: none;
+}
+
+button.reveal[aria-pressed="true"] .eye-off {
+  display: block;
+}
+
+button.reveal:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.account-label {
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.role-hub {
+  inline-size: 100%;
+  max-inline-size: 72rem;
+  padding-block: 1rem 3rem;
+}
+
+.role-greeting {
+  margin-block: 1rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.role-cards {
+  display: grid;
+  /* rem, never a percentage: BeerCSS makes `body` a grid container, so a section
+     inside `main` can be sized from its content, and `min(100%, ...)` inside
+     repeat(auto-fit) collapses to zero columns in that case. */
+  grid-template-columns: repeat(3, minmax(17rem, 1fr));
+  gap: 1.5rem;
+  inline-size: 100%;
+  max-inline-size: 66rem;
+}
+
+@media (max-width: 64rem) {
+  .role-cards {
+    grid-template-columns: repeat(2, minmax(17rem, 1fr));
+  }
+}
+
+@media (max-width: 44rem) {
+  .role-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.role-card {
+  /* BeerCSS's `.border` forces box-sizing:content-box on an element, which would
+     grow the card past its grid cell by its own padding and overlap its neighbour.
+     The card draws its own border instead, so it keeps border-box. */
+  box-sizing: border-box;
+  display: block;
+  inline-size: 100%;
+  padding: 1.5rem;
+  border: 1px solid var(--outline, rgb(0 0 0 / 0.12));
+  border-radius: 0.9rem;
+  background-color: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--elevate1);
+}
+
+.role-card:hover,
+.role-card:focus-visible {
+  background-color: var(--primary-container);
+  color: var(--on-primary-container);
+  box-shadow: var(--elevate2);
+  outline: none;
+}
+
+.role-card > svg {
+  inline-size: 2rem;
+  block-size: 2rem;
+  display: block;
+  color: var(--primary);
+}
+
+.role-card h2 {
+  margin-block: 0.65rem 0.25rem;
+  font-size: 1.05rem;
+}
+
+.role-card p {
+  margin: 0;
+  font-size: 0.875rem;
+  opacity: 0.75;
+}
+
+.role-card-action {
+  display: inline-block;
+  margin-block-start: 0.8rem;
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 table {
   inline-size: 100%;
+}
+
+table.record-table {
+  inline-size: auto;
 }
 
 table caption {

@@ -113,3 +113,56 @@ def test_theme_source_follows_the_palette_setting(
     values: dict[str, str], expected: str
 ) -> None:
     assert SchoolSettings(**values).theme_source == expected
+
+
+# --- Branding saved from the web (odd/tasks/role-panels.md T3) ---
+
+
+def test_load_school_settings_reads_the_saved_branding(tmp_path) -> None:
+    """Web values sit above school.toml but below nothing: env is read after them."""
+    config = tmp_path / "school.toml"
+    config.write_text('[school]\nname = "From the file"\ncolor = "#111111"\n')
+    saved = tmp_path / "branding.toml"
+    saved.write_text('[school]\nname = "Saved from the web"\ncolor = "#222222"\n')
+
+    loaded = load_school_settings(
+        config_path=config, saved_path=saved, environ={}
+    )
+
+    assert loaded.name == "Saved from the web"
+    assert loaded.color == "#222222"
+
+
+def test_the_environment_still_wins_over_the_saved_branding(tmp_path) -> None:
+    config = tmp_path / "school.toml"
+    config.write_text('[school]\nname = "From the file"\n')
+    saved = tmp_path / "branding.toml"
+    saved.write_text('[school]\nname = "Saved from the web"\n')
+
+    loaded = load_school_settings(
+        config_path=config,
+        saved_path=saved,
+        environ={"SCHOOL_NAME": "From the environment"},
+    )
+
+    assert loaded.name == "From the environment"
+
+
+def test_a_saved_file_with_no_school_table_is_refused(tmp_path) -> None:
+    saved = tmp_path / "branding.toml"
+    saved.write_text("[other]\nname = 'nope'\n")
+
+    with pytest.raises(ValueError, match=r"\[school\]"):
+        load_school_settings(
+            config_path=tmp_path / "missing.toml", saved_path=saved, environ={}
+        )
+
+
+def test_an_absent_saved_file_changes_nothing(tmp_path) -> None:
+    loaded = load_school_settings(
+        config_path=tmp_path / "missing.toml",
+        saved_path=tmp_path / "branding.toml",
+        environ={},
+    )
+
+    assert loaded.name == "School DB"

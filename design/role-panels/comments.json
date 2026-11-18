@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "comments": [
+    {
+      "id": "j9bxvk62",
+      "file": "03-role-hub.html",
+      "selector": "body > section:nth-of-type(1) > header > span",
+      "excerpt": "teacher.one",
+      "comment": "el nombre de la cuenta al lado del sign out parece un boton clickeable, podríamos convertirlo en un label o hacerlo clickeable (haciendo que muestre los detalles de esa cuenta)",
+      "createdAt": "2026-11-17T03:53:23.726Z",
+      "status": "resolved",
+      "sentAt": "2026-11-17T03:53:24.682Z",
+      "resolvedAt": "2026-11-17T05:23:06.810Z",
+      "resolution": "The username next to Sign out is now a plain muted label (span.who) in all three role headers of the artboard — no chip, nothing clickable."
+    }
+  ]
+}

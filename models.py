@@ -1,7 +1,8 @@
-"""SQLModel tables and Pydantic validation schemas for students."""
+"""SQLModel tables and Pydantic validation schemas for students and accounts."""
 
 import re
-from datetime import date
+from datetime import date, datetime
+from enum import StrEnum
 from typing import Annotated
 
 from pydantic import BeforeValidator, ConfigDict, StringConstraints, model_validator
@@ -26,6 +27,37 @@ Age = Annotated[int, Field(ge=1, le=130)]
 Birthday = Annotated[date, BeforeValidator(_parse_birthday)]
 
 
+class Role(StrEnum):
+    """What an account is allowed to do."""
+
+    student = "student"
+    teacher = "teacher"
+    admin = "admin"
+
+
+_USERNAME = re.compile(r"[a-z0-9][a-z0-9._-]{2,31}")
+
+
+def normalize_username(value: object) -> str:
+    """Normalize a username and accept only the documented character set.
+
+    Accounts and lookups share this function, so ``Ana.Perez`` and ``ana.perez`` are
+    the same account and a login cannot miss it by letter case.
+    """
+    if not isinstance(value, str):
+        raise ValueError("username must be text")
+    username = value.strip().lower()
+    if not _USERNAME.fullmatch(username):
+        raise ValueError(
+            "username must be 3 to 32 characters long and use only letters, "
+            "digits, dots, dashes or underscores"
+        )
+    return username
+
+
+Username = Annotated[str, BeforeValidator(normalize_username)]
+
+
 class Student(SQLModel, table=True):
     """Student table mapped to the existing ``students`` SQLite table."""
 
@@ -38,6 +70,53 @@ class Student(SQLModel, table=True):
     age: Age
     birthday: Birthday
     course: TrimmedCourse
+
+
+class User(SQLModel, table=True):
+    """Account that can sign in to the web UI.
+
+    The password itself is never stored: ``password_hash`` holds the self-describing
+    output of ``auth.hash_password``. A ``student`` account is linked to the student
+    record it owns; a ``teacher`` or ``admin`` account has no record of its own.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    __tablename__ = "users"
+
+    id: int | None = Field(default=None, primary_key=True)
+    username: Username = Field(unique=True, index=True)
+    password_hash: str
+    role: Role
+    student_id: int | None = Field(default=None, foreign_key="students.id")
+
+    @model_validator(mode="after")
+    def keep_student_links_student_only(self) -> "User":
+        if self.role is Role.student and self.student_id is None:
+            raise ValueError("a student account must be linked to a student record")
+        if self.role is not Role.student and self.student_id is not None:
+            raise ValueError(
+                "only a student account can be linked to a student record"
+            )
+        return self
+
+
+class LoginSession(SQLModel, table=True):
+    """One signed-in browser: the digest of its cookie token and its deadline.
+
+    The token itself is never stored, so a copy of the database does not hand out
+    live sessions. ``expires_at`` is an aware UTC datetime, which SQLModel stores
+    as plain UTC in SQLite and hands back with the zone attached.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    __tablename__ = "sessions"
+
+    id: int | None = Field(default=None, primary_key=True)
+    token_hash: str = Field(unique=True, index=True)
+    user_id: int = Field(foreign_key="users.id")
+    expires_at: datetime
 
 
 class StudentUpdate(SQLModel):

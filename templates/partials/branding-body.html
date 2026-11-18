@@ -1,0 +1,62 @@
+{# The branding form and its preview; swapped as one fragment on save. #}
+<form id="branding" method="post" action="/branding"
+      hx-post="/branding" hx-target="#branding-host" hx-swap="innerHTML">
+  {% if errors %}
+  <div class="error-container padding round" role="alert">
+    <strong>Please fix these values:</strong>
+    <ul>
+      {% for field, message in errors.items() %}
+      <li>{{ field }}: {{ message }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% elif saved %}
+  <p role="status" aria-live="polite">Branding saved. Every page now follows it.</p>
+  {% endif %}
+
+  <div class="field label border{% if errors.name %} invalid{% endif %}">
+    <input id="branding-name" name="name" type="text" value="{{ values.name }}"
+           autocomplete="off" data-autofocus required>
+    <label for="branding-name">School name</label>
+  </div>
+
+  <div class="field label border{% if errors.logo %} invalid{% endif %}">
+    <input id="branding-logo" name="logo" type="text" value="{{ values.logo }}"
+           autocomplete="off" list="branding-logos" required>
+    <label for="branding-logo">Logo file</label>
+  </div>
+  <datalist id="branding-logos">
+    {% for logo in logos %}
+    <option value="{{ logo }}"></option>
+    {% endfor %}
+  </datalist>
+
+  <div class="row">
+    <div class="field label border max{% if errors.color %} invalid{% endif %}">
+      <input id="branding-color" name="color" type="text" value="{{ values.color }}"
+             autocomplete="off" pattern="#[0-9a-fA-F]{6}" required>
+      <label for="branding-color">Seed color</label>
+    </div>
+    <div class="field label border max{% if errors.palette %} invalid{% endif %}">
+      <select id="branding-palette" name="palette" required>
+        <option value="logo"{% if values.palette == 'logo' %} selected{% endif %}>from the logo</option>
+        <option value="color"{% if values.palette == 'color' %} selected{% endif %}>from the color</option>
+      </select>
+      <label for="branding-palette">Palette comes</label>
+    </div>
+  </div>
+
+  <div class="row" aria-label="Preview">
+  <img class="circle" src="/static/{{ values.logo }}" alt="" width="40" height="40">
+    {% if values.palette == 'logo' %}
+    <span>Every page will sample this image.</span>
+    {% else %}
+    <span>Every page will use this seed color.</span>
+    {% endif %}
+  </div>
+
+  <nav>
+    <a class="button transparent" href="/">Back</a>
+    <button type="submit">Save branding</button>
+  </nav>
+</form>
