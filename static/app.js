@@ -42,8 +42,28 @@ document.body.addEventListener("click", (event) => {
   if (button) button.closest("dialog")?.close();
 });
 
+// BeerCSS floats a field's label onto the input border only while that input is
+// empty (`label.active`, or `:focus + label`). Its empty-state selector needs a
+// placeholder that is not whitespace-only, and a real placeholder would print its
+// own text inside a password field, so the label carries `active` itself
+// whenever the control holds a value, typed or refilled by the browser.
+function syncFloatingLabel(control) {
+  const field = control.closest(".field");
+  const label = field?.querySelector(":scope > label");
+  if (!label) return;
+  label.classList.toggle("active", control.value !== "");
+}
+
+for (const control of document.querySelectorAll(
+  ".field > input, .field > textarea, .field > select",
+)) {
+  syncFloatingLabel(control);
+  control.addEventListener("input", () => syncFloatingLabel(control));
+  control.addEventListener("change", () => syncFloatingLabel(control));
+}
+
 // `data-reveal` buttons toggle the matching password field between hidden and
-// shown, swapping the eye and eye-off icons as they go.
+// shown. The icon swap is pure CSS on aria-pressed, so this only flips state.
 document.body.addEventListener("click", (event) => {
   const button = event.target.closest("[data-reveal]");
   if (!button) return;
@@ -53,9 +73,7 @@ document.body.addEventListener("click", (event) => {
   input.type = show ? "text" : "password";
   button.setAttribute("aria-pressed", String(show));
   button.setAttribute("aria-label", show ? "Hide password" : "Show password");
-  for (const icon of button.querySelectorAll("svg[data-state]")) {
-    icon.hidden = icon.dataset.state !== (show ? "on" : "off");
-  }
+  button.setAttribute("title", show ? "Hide password" : "Show password");
 });
 
 // A successful write reports `student-changed` (students) or `data-changed`

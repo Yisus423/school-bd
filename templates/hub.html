@@ -25,7 +25,7 @@
     <p class="role-greeting">Good morning, {{ account.username }}</p>
 
     <section class="role-cards" aria-label="Your areas">
-      <a class="border round role-card" href="/students">
+      <a class="role-card" href="/students">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="9" cy="8" r="3"></circle>
@@ -39,7 +39,7 @@
       </a>
 
       {% if account.role.value == "admin" %}
-        <a class="border round role-card" href="/accounts">
+        <a class="role-card" href="/accounts">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="8" cy="12" r="4"></circle>
@@ -52,7 +52,7 @@
           <span class="role-card-action">Manage accounts →</span>
         </a>
 
-        <a class="border round role-card" href="/branding">
+        <a class="role-card" href="/branding">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 3a9 9 0 1 0 0 18h1.5a1.5 1.5 0 0 0 0-3H12a2 2 0 0 1 0-4h3.5A5.5 5.5 0 0 0 21 8.5C21 5.5 17 3 12 3Z"></path>

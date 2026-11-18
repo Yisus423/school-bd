@@ -72,14 +72,24 @@ a.brand img {
   position: relative;
 }
 
+/* BeerCSS floats a field label onto the input's border while the input is empty
+   (:placeholder-shown). A field that carries an inline control tells the input to
+   reserve room on the right, so the typed value never slides under the button. */
+.field.has-reveal > input,
+.field.has-reveal > input[type="password"] {
+  padding-inline-end: 2.75rem;
+}
+
 button.reveal {
   position: absolute;
-  inset-block-end: 0.4rem;
-  inset-inline-end: 0.4rem;
-  inline-size: 1.7rem;
-  block-size: 1.7rem;
+  inset-block-start: 50%;
+  inset-inline-end: 0.5rem;
+  translate: 0 -50%;
+  inline-size: 2rem;
+  block-size: 2rem;
   padding: 0;
   border: 0;
+  border-radius: 50%;
   background: transparent;
   color: var(--primary);
   cursor: pointer;
@@ -87,9 +97,25 @@ button.reveal {
   place-items: center;
 }
 
+button.reveal:hover {
+  background-color: var(--active);
+}
+
+/* Both icons ship in the markup and CSS picks one: BeerCSS's `svg { display: block }`
+   outranks the `hidden` attribute, so hiding relies on a class of ours. */
 button.reveal > svg {
-  inline-size: 1.2rem;
-  block-size: 1.2rem;
+  inline-size: 1.15rem;
+  block-size: 1.15rem;
+  display: block;
+  pointer-events: none;
+}
+
+button.reveal .eye-off,
+button.reveal[aria-pressed="true"] .eye {
+  display: none;
+}
+
+button.reveal[aria-pressed="true"] .eye-off {
   display: block;
 }
 
@@ -104,6 +130,8 @@ button.reveal:focus-visible {
 }
 
 .role-hub {
+  inline-size: 100%;
+  max-inline-size: 72rem;
   padding-block: 1rem 3rem;
 }
 
@@ -115,16 +143,37 @@ button.reveal:focus-visible {
 
 .role-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
-  gap: 1rem;
-  max-inline-size: 62rem;
+  /* rem, never a percentage: BeerCSS makes `body` a grid container, so a section
+     inside `main` can be sized from its content, and `min(100%, ...)` inside
+     repeat(auto-fit) collapses to zero columns in that case. */
+  grid-template-columns: repeat(3, minmax(17rem, 1fr));
+  gap: 1.5rem;
+  inline-size: 100%;
+  max-inline-size: 66rem;
+}
+
+@media (max-width: 64rem) {
+  .role-cards {
+    grid-template-columns: repeat(2, minmax(17rem, 1fr));
+  }
+}
+
+@media (max-width: 44rem) {
+  .role-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .role-card {
+  /* BeerCSS's `.border` forces box-sizing:content-box on an element, which would
+     grow the card past its grid cell by its own padding and overlap its neighbour.
+     The card draws its own border instead, so it keeps border-box. */
+  box-sizing: border-box;
   display: block;
   inline-size: 100%;
-  max-inline-size: 20rem;
-  padding: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid var(--outline, rgb(0 0 0 / 0.12));
+  border-radius: 0.9rem;
   background-color: var(--surface);
   color: inherit;
   text-decoration: none;

@@ -99,6 +99,25 @@ reviewed and merged separately. The login phase's independent verification (T8 o
 `web-auth.md`) stays un-run at the user's move-on; it is inherited as T7 here rather
 than silently closed.
 
+L9 (2026-11-16, user, verbatim, with screenshots of the hub and the record page):
+"esto se ve horrible [Image#1] [Image#2] los cards no se parecen nada a lo que me
+enseñaste en el design, lo mismo con el del student [Image#3], y dos mejoras de UX,
+tener el botoncito con el ojo para que el usuario pueda ver su contraseña y un boton
+para que el usuario pueda regresarse a la pagina anterior (en el caso del teacher y
+admin con sus menus para regresar a los cards)".
+
+L10 (2026-11-16, parent, finding): the hub source renders as designed — a re-serve
+measured the card at 320 px, the icon at 32 px, the card title at 16.8 px — so the broken
+cards in the screenshot were the browser painting a stale `app.css` from cache, not
+the template or the stylesheet. The fix is structural rather than a cache-busting
+instruction: every asset URL now carries `?v=<sha256 prefix of the file>` computed at
+render time, so a changed stylesheet can never be served under an old URL again. The
+record page really was wrong as photographed ("Age" floated to the far edge) because
+the global full-width `table` rule applied to it; it now uses a compact record table.
+Both UX requests in L9 are implemented: an eye button on all five password fields
+(login, account create, password reset), and the school name in the top bar is a link
+back to the role hub for every signed-in role, which is the way back to the cards.
+
 L8 (2026-11-16, parent, decision): account validation keeps one authority. The web
 routes never re-validate an account: they call `database.add_user` and
 `set_user_password`, and only route each rejection to the form field that must show

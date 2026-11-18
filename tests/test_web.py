@@ -126,7 +126,7 @@ def test_teacher_hub_has_only_the_students_card(
 
     assert response.status_code == 200
     assert re.findall(
-        r'<a class="border round role-card" href="([^"]+)">', response.text
+        r'<a class="role-card" href="([^"]+)">', response.text
     ) == ["/students"]
     assert 'href="/accounts"' not in response.text
     assert 'href="/branding"' not in response.text
@@ -140,7 +140,7 @@ def test_admin_hub_has_students_accounts_and_branding_cards(
 
     assert response.status_code == 200
     assert re.findall(
-        r'<a class="border round role-card" href="([^"]+)">', response.text
+        r'<a class="role-card" href="([^"]+)">', response.text
     ) == ["/students", "/accounts", "/branding"]
     assert stored_students() == SEEDED_STUDENTS
 

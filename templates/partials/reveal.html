@@ -1,0 +1,10 @@
+{# Eye button that shows or hides the value of the matching password field.
+   The icon swap is pure CSS on [aria-pressed]; this must not fight BeerCSS's
+   own `svg { display: block }` rule, so both icons are classed, not `hidden`. #}
+{% macro reveal_button(field_id, what="password") -%}
+<button type="button" class="reveal" data-reveal="{{ field_id }}"
+        aria-pressed="false" aria-label="Show {{ what }}" title="Show {{ what }}">
+  <svg class="eye" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 5c-5 0-9.3 3.1-11 7.5C2.7 16.9 7 20 12 20s9.3-3.1 11-7.5C21.3 8.1 17 5 12 5Zm0 12.5a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
+  <svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 5c-5 0-9.3 3.1-11 7.5C2.7 16.9 7 20 12 20s9.3-3.1 11-7.5C21.3 8.1 17 5 12 5Zm0 12.5a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/><path stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none" d="M4 4 20 20"/></svg>
+</button>
+{%- endmacro %}
