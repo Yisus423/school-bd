@@ -11,3 +11,6 @@ wheels/
 
 # Database
 db.sqlite3
+
+# School branding saved from the admin panel: local state, not a project default.
+branding.toml

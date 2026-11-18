@@ -31,6 +31,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 
 import database as db
+import settings as settings_module
 from models import Role, Student, User
 from settings import SchoolSettings, get_school_settings
 
@@ -112,6 +113,17 @@ def home_for(account: User | None) -> str:
     if account is None:
         return LOGIN_PATH
     return STAFF_HOME if account.role in STAFF_ROLES else STUDENT_HOME
+
+
+def available_logos() -> list[str]:
+    """List the image files under static/, for the branding form's suggestions."""
+    extensions = {".svg", ".png", ".jpg", ".jpeg", ".webp", ".gif"}
+    static_dir = BASE_DIR / "static"
+    return sorted(
+        entry.name
+        for entry in static_dir.iterdir()
+        if entry.is_file() and entry.suffix.lower() in extensions
+    )
 
 
 def account_of(request: Request) -> User | None:
@@ -905,7 +917,74 @@ def my_record(
     )
 
 
+@app.get("/branding", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def branding_page(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+) -> HTMLResponse:
+    """Branding form: the school name, the logo and the palette source."""
+    return templates.TemplateResponse(
+        request,
+        "branding.html",
+        {
+            "settings": settings,
+            "account": account,
+            "home": home_for(account),
+            "values": settings.model_dump(),
+            "logos": available_logos(),
+            "errors": {},
+            "saved": request.query_params.get("saved") == "1",
+        },
+    )
+
+
+@app.post("/branding", response_class=HTMLResponse, dependencies=ADMIN_ONLY)
+def save_branding(
+    request: Request,
+    settings: Settings,
+    account: AdminAccount,
+    name: Annotated[str, Form()] = "",
+    logo: Annotated[str, Form()] = "",
+    color: Annotated[str, Form()] = "",
+    palette: Annotated[str, Form()] = "",
+) -> Response:
+    """Validate the branding form, save it, or answer the same page with errors."""
+    values = {"name": name, "logo": logo, "color": color, "palette": palette}
+    errors: dict[str, str] = {}
+    saved = settings
+    try:
+        saved = settings_module.save_school_settings(values)
+    except ValidationError as error:
+        for item in error.errors():
+            field = str(item["loc"][0]) if item["loc"] else "name"
+            errors.setdefault(field, item["msg"].removeprefix("Value error, "))
+    except ValueError as error:
+        errors["name"] = str(error)
+
+    if not errors and not is_htmx(request):
+        # Post/Redirect/Get, so a refresh never repeats the write, as the other
+        # forms in this app do.
+        return RedirectResponse("/branding?saved=1", status_code=303)
+
+    response = templates.TemplateResponse(
+        request,
+        "branding.html",
+        {
+            "settings": saved if not errors else settings,
+            "account": account,
+            "home": home_for(account),
+            "values": values,
+            "errors": errors,
+            "saved": not errors,
+        },
+        status_code=422 if errors else 200,
+    )
+    if is_htmx(request) and not errors:
+        response.headers["HX-Trigger"] = DATA_CHANGED
+    return response
+
+
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("web:app", reload=True)

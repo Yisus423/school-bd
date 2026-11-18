@@ -1160,3 +1160,108 @@ def test_signed_in_pages_link_the_brand_back_to_the_hub(
     login = anonymous_client.get("/login")
     assert login.status_code == 200
     assert 'class="brand"' not in login.text
+
+
+
+# --- The admin's branding panel (odd/tasks/role-panels.md T3) ---
+
+
+@pytest.fixture
+def branding_file(tmp_path):
+    """Give settings.py a throwaway saved-branding file for this test."""
+    saved = tmp_path / "branding.toml"
+    original = settings.SAVED_PATH
+    settings.SAVED_PATH = saved
+    settings.get_school_settings.cache_clear()
+    try:
+        yield saved
+    finally:
+        settings.SAVED_PATH = original
+        settings.get_school_settings.cache_clear()
+
+
+def test_the_branding_panel_shows_the_current_values(admin_client) -> None:
+    response = admin_client.get("/branding")
+
+    assert response.status_code == 200
+    assert 'action="/branding"' in response.text
+    assert 'name="name"' in response.text
+    assert 'name="color"' in response.text
+    assert "School DB" in response.text
+
+
+def test_the_branding_panel_is_admin_only(
+    anonymous_client, teacher_client, student_client,
+) -> None:
+    anonymous = anonymous_client.get("/branding")
+    assert anonymous.status_code == 303
+    assert anonymous.headers["location"] == "/login?next=/branding"
+    assert teacher_client.get("/branding").status_code == 403
+    assert student_client.get("/branding").status_code == 403
+
+
+def test_an_admin_saves_branding_over_htmx(admin_client, branding_file) -> None:
+    response = admin_client.post(
+        "/branding",
+        data={"name": "Northside Academy", "logo": "logo.svg", "color": "#123456", "palette": "color"},
+        headers=HTMX_HEADERS,
+    )
+
+    assert response.status_code == 200
+    assert "Northside Academy" in response.text
+
+    saved = settings.load_school_settings()
+    assert saved.name == "Northside Academy"
+    assert saved.color == "#123456"
+    assert saved.palette == "color"
+
+    page = admin_client.get("/students")
+    assert "Northside Academy" in page.text
+
+
+def test_an_admin_saves_branding_without_javascript(admin_client, branding_file) -> None:
+    response = admin_client.post(
+        "/branding",
+        data={"name": "Northside Academy", "logo": "logo.svg", "color": "#123456", "palette": "color"},
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/branding?saved=1"
+    assert settings.load_school_settings().name == "Northside Academy"
+
+    followed = admin_client.get("/branding?saved=1")
+    assert "Northside Academy" in followed.text
+    assert "Branding saved" in followed.text
+
+
+@pytest.mark.parametrize(
+    "payload, field",
+    [
+        pytest.param({"name": "   ", "color": "#123456", "palette": "color"}, "name", id="blank-name"),
+        pytest.param({"name": "School", "color": "blue", "palette": "color"}, "color", id="bad-color"),
+        pytest.param({"name": "School", "color": "#123456", "palette": "rainbow"}, "palette", id="bad-palette"),
+        pytest.param({"name": "School", "color": "#123456", "palette": "color", "logo": "../x.svg"}, "logo", id="bad-logo"),
+    ],
+)
+def test_a_rejected_branding_form_writes_nothing(
+    admin_client, branding_file, payload: dict[str, str], field: str
+) -> None:
+    before = branding_file.read_text() if branding_file.is_file() else None
+
+    response = admin_client.post("/branding", data=payload, headers=HTMX_HEADERS)
+
+    assert response.status_code == 422
+    assert field in response.text
+    assert "Traceback" not in response.text
+    after = branding_file.read_text() if branding_file.is_file() else None
+    assert after == before
+
+
+def test_a_teacher_cannot_save_branding(roster_teacher_client, branding_file) -> None:
+    assert roster_teacher_client.get("/branding").status_code == 403
+    response = roster_teacher_client.post(
+        "/branding",
+        data={"name": "Hijacked", "color": "#123456", "palette": "color"},
+    )
+    assert response.status_code == 403
+    assert settings.load_school_settings().name == "School DB"

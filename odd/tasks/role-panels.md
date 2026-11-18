@@ -152,3 +152,24 @@ unit did complete, so the failure is intermittent but this unit lost the coin to
 three ways with the verify agent). The unit ran inline instead: the design system
 was captured by script extraction from `beer.min.css` and the app's own templates,
 and the three artboards were written by hand. Same content, different route.
+
+L11 (2026-11-16, user request, verbatim): "dale, haz lo que sigue, por favor a partir
+  de ahora testea/verifica con obscura o playwright, estoy cansado de esos errores".
+  Standing rule from here on, for every unit of this project: prove the behavior in a
+  real browser (obscura, or Playwright if preferred) before saying it works, and
+  before committing, not only in pytest. A test that passes while the page renders
+  wrong does not count as verification. This is what T3 (the branding panel) closes
+  with: not just the unit tests but a scripted browser flow saved under `odd/checks/`.
+
+L12 (2026-11-16, parent, decision): branding persistence. The admin edits the school
+name, the logo file, the seed color and the palette source; `save_school_settings`
+validates the whole set through `SchoolSettings` before anything touches the disk,
+then writes `branding.toml` next to `school.toml` atomically (temp file + `os.replace`
++ `fsync`) and clears the `lru_cache`. So a rejected form leaves no half-written file
+and a crash mid-write keeps the previous branding. Precedence on load, lowest to
+highest: `school.toml`, `branding.toml`, `SCHOOL_*` environment variables — the
+environment stays the way a deployment pins a value the page must not change, which
+also keeps `school.toml` in git as the readable default instead of being rewritten by
+the app at runtime. Kept `load_school_settings(config_path=, environ=)` working and
+added `saved_path=` so tests point the saved file at `tmp_path`; the README explains the
+three layers.
