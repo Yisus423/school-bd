@@ -55,6 +55,13 @@ server with reload enabled.
 | `POST /login` | Opens a session for a matching account. It answers `303` on success and `401` with the form again when the username or the password does not match. |
 | `POST /logout` | Closes the session and clears the cookie. |
 | `GET /me` | The signed-in student's own record, read-only. |
+| `GET /branding` | Branding form, admin only: school name, logo file, seed color and palette source. |
+| `POST /branding` | Validates and saves the branding, then sends the whole app back to it. |
+| `GET /accounts` | Accounts table, admin only. |
+| `GET /accounts/new` | Add-account dialog, admin only. |
+| `POST /accounts` | Creates an account. |
+| `GET /accounts/{username}/password` | Set-a-new-password dialog for one account, admin only. |
+| `POST /accounts/{username}/password` | Sets a new password for one account. |
 | `GET /students` | Full page, teacher or admin only. `q` and `course_filter` search the list server-side. |
 | `GET /students/rows` | Table body fragment used by the search field and the course select. |
 | `GET /students/new` | Add-student dialog. |
@@ -131,6 +138,13 @@ palette = "logo"     # source of the Material You palette: "logo" or "color"
 | `SCHOOL_LOGO` | The logo image, relative to `static/` (no `..`, no absolute paths). |
 | `SCHOOL_COLOR` | The seed color as `#RRGGBB`. |
 | `SCHOOL_PALETTE` | `logo` or `color`. |
+
+Three layers decide the branding, lowest to highest: `school.toml` in the repository,
+then `branding.toml` (what an admin saved from the branding panel, and git-ignored local
+state), then the `SCHOOL_*` environment variables. A deployment pins what the page may
+not change with an environment variable; without one, the panel wins. The panel
+validates the whole set before writing, and replaces the file atomically, so a rejected
+form leaves nothing behind and a crash mid-write keeps the previous branding.
 
 BeerCSS derives the entire Material You palette (primary, surfaces, containers, and
 their contrast pairs) from one source, so the whole UI follows the school's
